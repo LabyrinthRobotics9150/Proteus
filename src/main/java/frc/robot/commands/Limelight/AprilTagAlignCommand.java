@@ -90,7 +90,7 @@ public void execute() {
     drivetrain.applyRequest(() -> 
         new SwerveRequest.FieldCentric()
             .withVelocityX(finalForwardSpeed) // Forward/backward speed
-            .withVelocityY(0)                 // No sideways movement
+            .withVelocityY(0) // No sideways movement
             .withRotationalRate(finalRotationSpeed) // Rotational speed
     );
 }

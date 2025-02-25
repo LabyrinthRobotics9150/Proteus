@@ -43,8 +43,8 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     // (max velocity and acceleration)
     private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(
-        2.0, // (units per second)
-        1.0  // (units per second squared)
+        .01, // (units per second) (speed capped)
+        .01  // (units per second squared)
     );
 
     public ElevatorSubsystem() {

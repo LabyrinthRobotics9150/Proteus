@@ -20,7 +20,7 @@ public class IntakeSubsystem extends SubsystemBase {
     public double BALL_POSITION = 0.3;
 
     // (max velocity and acceleration)
-    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(1.0, 0.5); // Adjust values as needed
+    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.01, 0.01); // Adjust values as needed
 
     // profile states
     private TrapezoidProfile.State targetState = new TrapezoidProfile.State(HOME_POSITION, 0);
@@ -31,7 +31,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public IntakeSubsystem() {
         timer.start();
-        setHeight(HOME_POSITION); // Initialize to home position
+        //setHeight(HOME_POSITION); // Initialize to home position
     }
 
     @Override
