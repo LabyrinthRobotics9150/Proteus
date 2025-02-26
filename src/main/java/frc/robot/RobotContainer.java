@@ -15,6 +15,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.Constants.OperatorConstants;
+import frc.robot.commands.Elevator.MoveElevatorCommand;
 import frc.robot.commands.Elevator.MoveElevatorManualCommand;
 import frc.robot.commands.Intake.BallCommand;
 import frc.robot.commands.Intake.IntakeOuttakeCommand;
@@ -52,37 +53,42 @@ public class RobotContainer {
   // secondary
   Command level4Command = m_elevator.goToHeight(176); // tune these
   Command level3Command = m_elevator.goToHeight(104.5);
-  Command level2Command = m_elevator.goToHeight(59.29);
-  Command level1Command = m_elevator.goToHeight(0.0);
-  WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .1);
-  WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.1);
-  BallCommand ballCommand = new BallCommand(m_intake);
-
-    private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
-    private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
-
-    /* Setting up bindings for necessary control of the swerve drive platform */
-    private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
-            .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
-    private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
-    private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
-
-    private final Telemetry logger = new Telemetry(MaxSpeed);
-
-  private final CommandXboxController m_primaryController =
-      new CommandXboxController(OperatorConstants.kDriverControllerPort);
-    
-  private final CommandXboxController m_secondaryController = 
-    new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
-    // determines which commands are enabled;
-    boolean TESTING_MODE = false;
-
-    public RobotContainer() {
-        configureBindings();
-    }
-
-    private void configureBindings() {
+  Command level2Command = m_elevator.goToHeight(30);
+    Command level1Command = m_elevator.goToHeight(0.0);
+    WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .1);
+    WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.1);
+    BallCommand ballCommand = new BallCommand(m_intake);
+  
+      private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
+      private double MaxAngularRate = RotationsPerSecond.of(0.75).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
+  
+      /* Setting up bindings for necessary control of the swerve drive platform */
+      private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
+              .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
+              .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+      private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
+      private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+  
+      private final Telemetry logger = new Telemetry(MaxSpeed);
+  
+    private final CommandXboxController m_primaryController =
+        new CommandXboxController(OperatorConstants.kDriverControllerPort);
+      
+    private final CommandXboxController m_secondaryController = 
+      new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
+      // determines which commands are enabled;
+      boolean TESTING_MODE = true;
+  
+      public RobotContainer() {
+          configureBindings();
+      }
+  
+      private Command MoveElevatorCommand(int i) {
+          // TODO Auto-generated method stub
+          throw new UnsupportedOperationException("Unimplemented method 'MoveElevatorCommand'");
+      }
+  
+      private void configureBindings() {
         // Note that X is defined as forward according to WPILib convention,
         // and Y is defined as to the left according to WPILib convention.
         drivetrain.setDefaultCommand(
@@ -94,17 +100,17 @@ public class RobotContainer {
             )
         );
 
-        m_primaryController.a().whileTrue(drivetrain.applyRequest(() -> brake));
-        m_primaryController.b().whileTrue(drivetrain.applyRequest(() ->
-            point.withModuleDirection(new Rotation2d(-m_primaryController.getLeftY() / 10, -m_primaryController.getLeftX() / 10))
-        ));
+        //m_primaryController.a().whileTrue(drivetrain.applyRequest(() -> brake));
+        //m_primaryController.b().whileTrue(drivetrain.applyRequest(() ->
+        //    point.withModuleDirection(new Rotation2d(-m_primaryController.getLeftY() / 10, -m_primaryController.getLeftX() / 10))
+        //));
 
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
         m_primaryController.back().and(m_primaryController.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
-        m_primaryController.back().and(m_primaryController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
+        //m_primaryController.back().and(m_primaryController.x()).whileTrue(drivetrain.sysIdDynamic(Direction.kReverse));
         m_primaryController.start().and(m_primaryController.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
-        m_primaryController.start().and(m_primaryController.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
+        //m_primaryController.start().and(m_primaryController.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
         // reset the field-centric heading on left bumper press
         m_primaryController.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
@@ -132,14 +138,18 @@ public class RobotContainer {
     m_primaryController.a()
     .whileTrue(wheelMoveCommand);
 
-    m_primaryController.x()
-    .whileTrue(wheelMoveReverseCommand);
+    //m_primaryController.x()
+    //.whileTrue(wheelMoveReverseCommand);
 
     m_primaryController.y()
     .whileTrue(closestAprilTagCommand);
 
-    m_primaryController.b()
-    .whileTrue(alignRightCommand);
+    //m_primaryController.b()
+    //.whileTrue(alignRightCommand);
+
+    // X - Level 2
+    m_primaryController.x()
+    .whileTrue(level2Command);
 
     } else {
     /* PRIMARY */

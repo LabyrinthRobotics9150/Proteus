@@ -19,12 +19,12 @@ public class AprilTagAlignCommand extends Command {
 
     // Constants
     private static final double TARGET_DISTANCE = 1.0; // meters
-    private static final double MAX_SPEED = 1.0; // meters per second (reduced)
+    private static final double MAX_SPEED = .01; // meters per second (reduced)
     private static final double MAX_ANGULAR_SPEED = Math.PI / 2; // radians per second (reduced)
     private static final double MAX_ANGULAR_ACCELERATION = Math.PI / 4; // radians per second²
     private static final double LIMELIGHT_HEIGHT = 0.5; // meters
     private static final double APRILTAG_HEIGHT = 0.2; // meters
-    private static final double LIMELIGHT_MOUNT_ANGLE = 30.0; // degrees
+    private static final double LIMELIGHT_MOUNT_ANGLE = 25.0; // degrees
     private static final double HORIZONTAL_OFFSET = 0.5; // meters (distance to the left or right of the AprilTag)
 
     public AprilTagAlignCommand(LimelightSubsystem limelight, CommandSwerveDrivetrain drivetrain, boolean alignRight) {

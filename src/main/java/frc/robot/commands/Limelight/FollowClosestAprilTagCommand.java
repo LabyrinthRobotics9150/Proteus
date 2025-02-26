@@ -17,9 +17,9 @@ public class FollowClosestAprilTagCommand extends Command {
 
     // Constants 
     private static final double TARGET_DISTANCE = 1.0; // meters
-    private static final double MAX_SPEED = 1.0; // meters/sec 
-    private static final double MAX_ANGULAR_SPEED = Math.PI / 2; // rad/sec 
-    private static final double MAX_ANGULAR_ACCELERATION = Math.PI / 4; // rad/sec²
+    private static final double MAX_SPEED = .01; // meters/sec 
+    private static final double MAX_ANGULAR_SPEED = Math.PI / 8; // rad/sec  2
+    private static final double MAX_ANGULAR_ACCELERATION = Math.PI / 8; // rad/sec² 4
     private static final double LIMELIGHT_HEIGHT = 0.5; // meters
     private static final double APRILTAG_HEIGHT = 0.2; // meters
     private static final double LIMELIGHT_MOUNT_ANGLE = 30.0; // degrees
@@ -66,7 +66,10 @@ public class FollowClosestAprilTagCommand extends Command {
         // Apply speed limits
         rotationSpeed = Math.max(-MAX_ANGULAR_SPEED, Math.min(rotationSpeed, MAX_ANGULAR_SPEED));
         forwardSpeed = Math.max(-MAX_SPEED, Math.min(forwardSpeed, MAX_SPEED));
-
+        if (forwardSpeed > 1.0 || rotationSpeed > 1.0) {
+            forwardSpeed = .5;
+            rotationSpeed = .5;
+        }
         final double finalForwardSpeed = forwardSpeed;
         final double finalRotationSpeed = rotationSpeed;
 

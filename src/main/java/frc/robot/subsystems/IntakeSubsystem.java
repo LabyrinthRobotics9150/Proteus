@@ -16,8 +16,8 @@ public class IntakeSubsystem extends SubsystemBase {
     private final PIDController pidController = new PIDController(0.5, 0, 0);
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
-    public double HOME_POSITION = 0.84;
-    public double BALL_POSITION = 0.3;
+    public double HOME_POSITION = 0.83;
+    public double BALL_POSITION = 0.38;
 
     // (max velocity and acceleration)
     private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.01, 0.01); // Adjust values as needed
@@ -31,7 +31,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
     public IntakeSubsystem() {
         timer.start();
-        //setHeight(HOME_POSITION); // Initialize to home position
+        setHeight(HOME_POSITION); // Initialize to home position
     }
 
     @Override

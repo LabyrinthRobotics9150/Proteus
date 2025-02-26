@@ -160,8 +160,8 @@ public class ElevatorSubsystem extends SubsystemBase {
                 currentState = new TrapezoidProfile.State(getHeight(), elevatorEncoder.getVelocity());
                 motionProfile = new TrapezoidProfile(
                     new TrapezoidProfile.Constraints(
-                        Math.min(SmartDashboard.getNumber("maxVel", 2.0), 5.5), // Hard cap at 5.5
-                        Math.min(SmartDashboard.getNumber("maxAcc", 1.0), 2.75)
+                        Math.min(SmartDashboard.getNumber("maxVel", .5), 1.0), // Hard cap at 5.5
+                        Math.min(SmartDashboard.getNumber("maxAcc", .5), 1.0)
                     )
                 );
                 profileTimer.reset();
