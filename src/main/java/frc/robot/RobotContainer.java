@@ -88,15 +88,15 @@ public class RobotContainer {
         drivetrain.setDefaultCommand(
             // Drivetrain will execute this command periodically
             drivetrain.applyRequest(() ->
-                drive.withVelocityX(-m_primaryController.getLeftY() * MaxSpeed) // Drive forward with negative Y (forward)
-                    .withVelocityY(-m_primaryController.getLeftX() * MaxSpeed) // Drive left with negative X (left)
-                    .withRotationalRate(-m_primaryController.getRightX() * MaxAngularRate) // Drive counterclockwise with negative X (left)
+                drive.withVelocityX((-m_primaryController.getLeftY() / 10) * MaxSpeed) // Drive forward with negative Y (forward)
+                    .withVelocityY((-m_primaryController.getLeftX()/ 10) * MaxSpeed) // Drive left with negative X (left)
+                    .withRotationalRate((-m_primaryController.getRightX() / 10) * MaxAngularRate) // Drive counterclockwise with negative X (left)
             )
         );
 
         m_primaryController.a().whileTrue(drivetrain.applyRequest(() -> brake));
         m_primaryController.b().whileTrue(drivetrain.applyRequest(() ->
-            point.withModuleDirection(new Rotation2d(-m_primaryController.getLeftY(), -m_primaryController.getLeftX()))
+            point.withModuleDirection(new Rotation2d(-m_primaryController.getLeftY() / 10, -m_primaryController.getLeftX() / 10))
         ));
 
         // Run SysId routines when holding back/start and X/Y.
@@ -137,6 +137,9 @@ public class RobotContainer {
 
     m_primaryController.y()
     .whileTrue(closestAprilTagCommand);
+
+    m_primaryController.b()
+    .whileTrue(alignRightCommand);
 
     } else {
     /* PRIMARY */
