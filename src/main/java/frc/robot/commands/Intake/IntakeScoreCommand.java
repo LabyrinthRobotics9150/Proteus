@@ -28,8 +28,8 @@ public class IntakeScoreCommand extends Command {
     public IntakeScoreCommand(ElevatorSubsystem elevatorSubsystem, IntakeSubsystem intakeSubsystem) {
         this.elevatorSubsystem = elevatorSubsystem;
         this.intakeSubsystem = intakeSubsystem;
-        this.heightThreshold = 0.3;
-        this.normalSpeed = 0.3;
+        this.heightThreshold = 0.4;
+        this.normalSpeed = 0.06;
         this.slowSpeed = 0.2;
         this.reverseSpeed = 0.3;
         this.reverseRotations = 0.5;
@@ -43,7 +43,6 @@ public class IntakeScoreCommand extends Command {
     public void initialize() {
         double elevatorHeight = elevatorSubsystem.getHeight();
         isScoringMode = (elevatorHeight >= heightThreshold);
-        
         if (isScoringMode) {
             intakeSubsystem.moveWheel(scoringSpeed);
         } else {

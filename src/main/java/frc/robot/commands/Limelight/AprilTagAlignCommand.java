@@ -21,7 +21,7 @@ public class AprilTagAlignCommand extends Command {
 
     // Constants
     private static final double TARGET_DISTANCE = 0.1; // meters
-    private static final double LATERAL_OFFSET = 0.5; // meters
+    private static final double LATERAL_OFFSET = 0.2; // meters
     private static final double POSITION_TOLERANCE = 0.05;
     private static final double ANGLE_TOLERANCE = Units.degreesToRadians(2);
     private static final double MAX_SPEED = 0.5;
