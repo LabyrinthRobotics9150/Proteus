@@ -7,8 +7,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 public class LimelightSubsystem extends SubsystemBase {
     private final NetworkTable limelight;
 
-    public LimelightSubsystem(int pipeline) {
-        setPipeline(pipeline);
+    public LimelightSubsystem() {
         limelight = NetworkTableInstance.getDefault().getTable("limelight");
     }
 
@@ -44,10 +43,13 @@ public class LimelightSubsystem extends SubsystemBase {
     }
 
     public void setPipeline(int pipeline) {
+        System.out.println("Setting pipeline to " + pipeline + " at " + System.currentTimeMillis());
         limelight.getEntry("pipeline").setNumber(pipeline);
     }
 
     public double getCurrentPipeline() {
-        return limelight.getEntry("getpipe").getDouble(-1);
+        double pipe = limelight.getEntry("getpipe").getDouble(-1);
+        System.out.println("Current pipeline: " + pipe + " at " + System.currentTimeMillis());
+        return pipe;
     }
 }
