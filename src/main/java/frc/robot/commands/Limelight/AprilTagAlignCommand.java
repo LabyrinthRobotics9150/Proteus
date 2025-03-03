@@ -14,9 +14,6 @@ public class AprilTagAlignCommand extends Command {
     private final PIDController yController;
     private final PIDController thetaController;
     private final SwerveRequest.RobotCentric driveRequest = new SwerveRequest.RobotCentric();
-    private boolean pipelineValid = false;
-    private int pipelineSetAttempts = 0;
-    private static final int MAX_PIPELINE_ATTEMPTS = 10;
 
     private static final double DESIRED_OFFSET_METERS = 0.5;
     private static final double Y_TOLERANCE_METERS = 0.05;
@@ -41,36 +38,21 @@ public class AprilTagAlignCommand extends Command {
 
     @Override
     public void initialize(){ 
-        // Force configure Limelight state
         limelight.setPipeline(0);
-        limelight.setLedMode(3);  // Force LEDs on
-        pipelineValid = false;
-        pipelineSetAttempts = 0;
+        limelight.setLedMode(3);
 
-        // Reset controllers
         yController.reset();
         thetaController.reset();
         double desiredY = alignRight ? -DESIRED_OFFSET_METERS : DESIRED_OFFSET_METERS;
         yController.setSetpoint(desiredY);
-        thetaController.setSetpoint(0);
+        thetaController.setSetpoint(0); // Center the tag in the Limelight's view
     }
 
     @Override
     public void execute() {
-       // Verify pipeline before proceeding
-       if (!pipelineValid) {
-        pipelineSetAttempts++;
-        if (limelight.getCurrentPipeline() == 0) {
-            pipelineValid = true;
-            System.out.println("Pipeline 0 confirmed after " + pipelineSetAttempts + " attempts");
-        } else if (pipelineSetAttempts <= MAX_PIPELINE_ATTEMPTS) {
-            limelight.setPipeline(0); // Resend pipeline command
-            return; // Skip this cycle
-        } else {
-            System.out.println("Failed to set pipeline after " + MAX_PIPELINE_ATTEMPTS + " attempts");
-            cancel();
-            return;
-        }
+      // Check pipeline using subsystem method
+      if (limelight.getCurrentPipeline() != 0) {
+        System.out.println("Wrong pipeline! Current: " + limelight.getCurrentPipeline());
     }
     if (!limelight.hasTarget()) {
         drivetrain.setControl(new SwerveRequest.Idle());
