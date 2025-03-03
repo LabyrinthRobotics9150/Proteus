@@ -61,7 +61,7 @@ public class AprilTagAlignCommand extends Command {
     @Override
     public void initialize() {
         limelight.setPipeline(0);
-        limelight.setLedMode(3);
+        limelight.setLedMode(1);
         currentState = State.ROTATE;
         xController.reset();
         yController.reset();
