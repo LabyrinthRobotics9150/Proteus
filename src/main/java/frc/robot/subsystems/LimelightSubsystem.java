@@ -7,7 +7,8 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 public class LimelightSubsystem extends SubsystemBase {
     private final NetworkTable limelight;
 
-    public LimelightSubsystem() {
+    public LimelightSubsystem(int pipeline) {
+        setPipeline(pipeline);
         limelight = NetworkTableInstance.getDefault().getTable("limelight");
     }
 
