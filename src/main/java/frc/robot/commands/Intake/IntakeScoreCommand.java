@@ -12,7 +12,7 @@ public class IntakeScoreCommand extends Command {
     private final double normalSpeed;
     private final double slowSpeed;
     private final double reverseSpeed;
-    private final double reverseRotations; // Rotations to reverse
+    private final double reverseRotations;
     private final double scoringSpeed;
     private final double detectionThresholdMm;
 
@@ -22,17 +22,17 @@ public class IntakeScoreCommand extends Command {
 
     private State currentState;
     private boolean isScoringMode;
-    private double initialEncoderPosition; // Track encoder position for rotation counting
+    private double initialEncoderPosition;
 
     public IntakeScoreCommand(ElevatorSubsystem elevatorSubsystem, IntakeSubsystem intakeSubsystem) {
         this.elevatorSubsystem = elevatorSubsystem;
         this.intakeSubsystem = intakeSubsystem;
         this.heightThreshold = 0.4;
-        this.normalSpeed = 0.07;  // Increased for intake
+        this.normalSpeed = 0.07;
         this.slowSpeed = 0.05;
         this.reverseSpeed = 0.05; 
-        this.reverseRotations = 2.5; // Reverse for 0.5 rotations
-        this.scoringSpeed = -0.5; // Negative for reverse scoring
+        this.reverseRotations = 2.5;
+        this.scoringSpeed = -0.5;
         this.detectionThresholdMm = 30;
 
         addRequirements(intakeSubsystem);
@@ -44,12 +44,12 @@ public class IntakeScoreCommand extends Command {
         isScoringMode = (elevatorHeight >= heightThreshold);
         
         if (isScoringMode) {
-            intakeSubsystem.moveWheel(scoringSpeed); // Reverse for scoring
+            intakeSubsystem.moveWheel(scoringSpeed);
         } else {
             currentState = State.INIT;
-            intakeSubsystem.moveWheel(normalSpeed); // Forward for intake
+            intakeSubsystem.moveWheel(normalSpeed);
         }
-        initialEncoderPosition = intakeSubsystem.getEncoderPosition(); // Initialize encoder position
+        initialEncoderPosition = intakeSubsystem.getEncoderPosition();
     }
 
     @Override
@@ -59,7 +59,6 @@ public class IntakeScoreCommand extends Command {
         boolean nowScoringMode = (elevatorHeight >= heightThreshold);
 
         if (nowScoringMode != isScoringMode) {
-            // Mode changed! Reset state
             isScoringMode = nowScoringMode;
             if (isScoringMode) {
                 intakeSubsystem.moveWheel(scoringSpeed);
@@ -74,7 +73,7 @@ public class IntakeScoreCommand extends Command {
                 case INIT:
                     LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
                     if (isObjectDetected(meas)) {
-                        intakeSubsystem.moveWheel(slowSpeed); // Slow down
+                        intakeSubsystem.moveWheel(slowSpeed); 
                         currentState = State.DETECTED_OBJECT;
                     }
                     break;
@@ -104,6 +103,7 @@ public class IntakeScoreCommand extends Command {
     }
 
     private boolean isObjectDetected(LaserCan.Measurement meas) {
+        System.out.println(meas);
         return meas != null 
             && meas.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT
             && meas.distance_mm < detectionThresholdMm;
