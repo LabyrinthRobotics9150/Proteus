@@ -45,8 +45,8 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
   // primary
   IntakeScoreCommand intakeScoreCommand = new IntakeScoreCommand(m_elevator, m_intake);
-  AprilTagAlignCommand alignRightCommand = new AprilTagAlignCommand( limelight, drivetrain,  true);
-  AprilTagAlignCommand alignLeftCommand = new AprilTagAlignCommand(limelight, drivetrain, false);
+  AprilTagAlignCommand alignRightCommand = new AprilTagAlignCommand( limelight, drivetrain);//,  true);
+  AprilTagAlignCommand alignLeftCommand = new AprilTagAlignCommand(limelight, drivetrain);//, false);
   
 
   // temporary
