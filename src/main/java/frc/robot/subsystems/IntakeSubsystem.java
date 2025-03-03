@@ -13,7 +13,8 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.Constants;
 
 public class IntakeSubsystem extends SubsystemBase {
-    public static LaserCan laserCan;
+    public static LaserCan laserCan0;
+    public static LaserCan laserCan1;
     public static final SparkFlex IntakePivotMotor = new SparkFlex(Constants.OperatorConstants.kIntakePivotCanId, MotorType.kBrushless); 
     public static final SparkFlex IntakeWheelsMotor = new SparkFlex(Constants.OperatorConstants.kIntakeWheelsCanId, MotorType.kBrushless);
     private final PIDController pidController = new PIDController(0.5, 0, 0);
@@ -32,16 +33,18 @@ public class IntakeSubsystem extends SubsystemBase {
     private final Timer timer = new Timer();
     private TrapezoidProfile profile = new TrapezoidProfile(constraints);
 
-    public IntakeSubsystem(int laserCANcanId) {
+    public IntakeSubsystem(int laserCANcanId, int laserCANcanid1) {
         timer.start();
         setHeight(HOME_POSITION); // Initialize to home position
-        laserCan = new LaserCan(laserCANcanId);
+        laserCan0 = new LaserCan(laserCANcanId);
+        laserCan1 = new LaserCan(laserCANcanid1);
+
 
         // Initialize LaserCAN settings
         try {
-            laserCan.setRangingMode(LaserCan.RangingMode.SHORT);
-            laserCan.setRegionOfInterest(new LaserCan.RegionOfInterest(8, 8, 16, 16));
-            laserCan.setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
+            laserCan0.setRangingMode(LaserCan.RangingMode.SHORT);
+            laserCan0.setRegionOfInterest(new LaserCan.RegionOfInterest(16, 16, 32, 32));
+            laserCan0.setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
         } catch (ConfigurationFailedException e) {
             System.err.println("LaserCAN configuration failed: " + e.getMessage());
         }
@@ -51,7 +54,7 @@ public class IntakeSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         // Periodically get the latest measurement from the LaserCAN
-        LaserCan.Measurement measurement = laserCan.getMeasurement();
+        LaserCan.Measurement measurement = laserCan0.getMeasurement();
         // Update the current state based on the profile
         currentState = profile.calculate(timer.get(), currentState, targetState);
 

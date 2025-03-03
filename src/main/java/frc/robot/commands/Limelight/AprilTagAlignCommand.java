@@ -8,7 +8,7 @@ import frc.robot.subsystems.LimelightSubsystem;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 public class AprilTagAlignCommand extends Command {
-    private enum State { APPROACH, LATERAL }
+    private enum State { CENTER, LATERAL }
     
     private final LimelightSubsystem limelight;
     private final CommandSwerveDrivetrain drivetrain;
@@ -17,14 +17,14 @@ public class AprilTagAlignCommand extends Command {
     private final PIDController yController;
     private final PIDController thetaController;
     private final SwerveRequest.RobotCentric driveRequest = new SwerveRequest.RobotCentric();
-    private State currentState = State.APPROACH;
+    private State currentState = State.CENTER;
 
     // Constants
-    private static final double TARGET_DISTANCE = 0.3; // meters
-    private static final double LATERAL_OFFSET = 0.5; // meters
+    private static final double TARGET_DISTANCE = 0.3; // meters in front of tag
+    private static final double LATERAL_OFFSET = 0.5; // meters to side
     private static final double POSITION_TOLERANCE = 0.05;
     private static final double ANGLE_TOLERANCE = Units.degreesToRadians(1.5);
-    private static final double MAX_SPEED = 0.4;
+    private static final double MAX_LINEAR_SPEED = 0.4;
     private static final double MAX_ANGULAR_SPEED = Math.PI/8;
 
     public AprilTagAlignCommand(LimelightSubsystem limelight, 
@@ -35,9 +35,9 @@ public class AprilTagAlignCommand extends Command {
         this.alignRight = alignRight;
 
         // PID Controllers
-        xController = new PIDController(1.5, 0, 0.1);
-        yController = new PIDController(1.2, 0, 0.1);
-        thetaController = new PIDController(2.5, 0, 0.15);
+        xController = new PIDController(2.0, 0, 0.1);
+        yController = new PIDController(1.5, 0, 0.1);
+        thetaController = new PIDController(3.0, 0, 0.2);
         thetaController.enableContinuousInput(-Math.PI, Math.PI);
 
         addRequirements(drivetrain);
@@ -47,10 +47,15 @@ public class AprilTagAlignCommand extends Command {
     public void initialize() {
         limelight.setPipeline(0);
         limelight.setLedMode(3);
-        currentState = State.APPROACH;
+        currentState = State.CENTER;
         xController.reset();
         yController.reset();
         thetaController.reset();
+        
+        // Initial setpoints - center first
+        xController.setSetpoint(TARGET_DISTANCE);
+        yController.setSetpoint(0); // Center laterally
+        thetaController.setSetpoint(0); // Face directly
     }
 
     @Override
@@ -64,8 +69,8 @@ public class AprilTagAlignCommand extends Command {
         if (pose == null) return;
 
         switch (currentState) {
-            case APPROACH:
-                handleApproachPhase(pose);
+            case CENTER:
+                handleCenterPhase(pose);
                 break;
             case LATERAL:
                 handleLateralPhase(pose);
@@ -73,47 +78,48 @@ public class AprilTagAlignCommand extends Command {
         }
     }
 
-    private void handleApproachPhase(double[] pose) {
+    private void handleCenterPhase(double[] pose) {
         // Get robot's position relative to AprilTag
-        double currentX = pose[0]; // Forward distance (positive = in front of tag)
-        double currentYaw = Math.toRadians(pose[2]); // Robot's yaw relative to tag
+        double currentX = pose[0]; // Forward distance (positive = in front)
+        double currentY = pose[1]; // Lateral offset (positive = left)
+        double currentYaw = Math.toRadians(pose[2]); // Angle from tag
         
-        // Calculate forward speed to maintain target distance
-        double xSpeed = xController.calculate(currentX, TARGET_DISTANCE);
-        
-        // Calculate rotation to face tag directly (target yaw = 0)
-        double rotationSpeed = thetaController.calculate(currentYaw, 0);
+        // Calculate motion components
+        double xSpeed = xController.calculate(currentX);
+        double ySpeed = yController.calculate(currentY);
+        double rotationSpeed = thetaController.calculate(currentYaw);
 
+        // Apply movement with speed limits
         drivetrain.setControl(
             driveRequest
-                .withVelocityX(clamp(-xSpeed, -MAX_SPEED, MAX_SPEED))
-                .withVelocityY(0)
+                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
                 .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
         );
 
-        // Transition to lateral phase when aligned and at distance
-        if (Math.abs(currentX - TARGET_DISTANCE) < POSITION_TOLERANCE 
-            && Math.abs(currentYaw) < ANGLE_TOLERANCE) {
+        // Transition when centered and aligned
+        if (xController.atSetpoint() && 
+            yController.atSetpoint() && 
+            thetaController.atSetpoint()) {
             currentState = State.LATERAL;
             yController.setSetpoint(alignRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
         }
     }
 
     private void handleLateralPhase(double[] pose) {
-        // Get robot's lateral position (positive = left of tag)
+        // Maintain forward distance while moving laterally
+        double currentX = pose[0];
         double currentY = pose[1];
-        double currentYaw = Math.toRadians(pose[2]);
         
-        // Calculate lateral speed
+        // Calculate motion components
+        double xSpeed = xController.calculate(currentX);
         double ySpeed = yController.calculate(currentY);
-        
-        // Maintain facing direction toward AprilTag
-        double rotationSpeed = thetaController.calculate(currentYaw, 0);
+        double rotationSpeed = thetaController.calculate(Math.toRadians(pose[2]));
 
         drivetrain.setControl(
             driveRequest
-                .withVelocityX(0)
-                .withVelocityY(clamp(-ySpeed, -MAX_SPEED, MAX_SPEED))
+                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
                 .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
         );
     }
