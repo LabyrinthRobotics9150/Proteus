@@ -28,10 +28,10 @@ public class IntakeScoreCommand extends Command {
         this.elevatorSubsystem = elevatorSubsystem;
         this.intakeSubsystem = intakeSubsystem;
         this.heightThreshold = 0.4;
-        this.normalSpeed = 0.07;
-        this.slowSpeed = 0.04;
-        this.reverseSpeed = 0.04; 
-        this.reverseRotations = 1;
+        this.normalSpeed = 0.1;
+        this.slowSpeed = 0.07;
+        this.reverseSpeed = 0.06; 
+        this.reverseRotations = 1.25;
         this.scoringSpeed = -0.5;
         this.detectionThresholdMm = 20;
 
@@ -71,7 +71,7 @@ public class IntakeScoreCommand extends Command {
         if (!isScoringMode) {
             switch (currentState) {
                 case INIT:
-                    LaserCan.Measurement meas = intakeSubsystem.laserCan0.getMeasurement();
+                    LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
                     if (isObjectDetected(meas)) {
                         intakeSubsystem.moveWheel(slowSpeed); 
                         currentState = State.DETECTED_OBJECT;
@@ -82,7 +82,7 @@ public class IntakeScoreCommand extends Command {
                     // Keep running slow speed while object is detected
                     intakeSubsystem.moveWheel(slowSpeed); 
 
-                    LaserCan.Measurement newMeas = intakeSubsystem.laserCan0.getMeasurement();
+                    LaserCan.Measurement newMeas = intakeSubsystem.laserCan.getMeasurement();
                     if (!isObjectDetected(newMeas)) {
                         intakeSubsystem.moveWheel(-reverseSpeed); // Reverse direction
                         initialEncoderPosition = intakeSubsystem.getEncoderPosition(); // Reset encoder position
