@@ -97,7 +97,6 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        System.out.println("current position: " + elevatorEncoder.getPosition());
         // Update tuning constants from SmartDashboard.
         double kG = SmartDashboard.getNumber("Gravity FF", .8);
         double kP = SmartDashboard.getNumber("Elevator kP", 0.5);
