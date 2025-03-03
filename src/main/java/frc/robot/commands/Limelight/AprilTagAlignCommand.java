@@ -8,19 +8,26 @@ import frc.robot.subsystems.LimelightSubsystem;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 public class AprilTagAlignCommand extends Command {
+    private enum State { APPROACH, LATERAL }
+    
     private final LimelightSubsystem limelight;
     private final CommandSwerveDrivetrain drivetrain;
     private final boolean alignRight;
+    private final PIDController xController;
     private final PIDController yController;
     private final PIDController thetaController;
     private final SwerveRequest.RobotCentric driveRequest = new SwerveRequest.RobotCentric();
+    private State currentState = State.APPROACH;
 
-    // Updated constants
-    private static final double DESIRED_OFFSET_METERS = 0.3;
-    private static final double Y_TOLERANCE_METERS = 0.03;
-    private static final double THETA_TOLERANCE_RADIANS = Units.degreesToRadians(1.5);
-    private static final double MAX_SPEED = 0.8;  // m/s
-    private static final double MAX_ANGULAR_SPEED = Math.PI / 4;  // rad/s
+    // Constants
+    private static final double TARGET_DISTANCE = 0.3; // meters
+    private static final double LATERAL_OFFSET = 0.5; // meters
+    private static final double POSITION_TOLERANCE = 0.05;
+    private static final double ANGLE_TOLERANCE = Units.degreesToRadians(2);
+    private static final double MAX_SPEED = 0.5;
+    private static final double CAMERA_HEIGHT = 1.0; // meters
+    private static final double TARGET_HEIGHT = 1.5; // meters
+    private static final double CAMERA_PITCH = Units.degreesToRadians(25);
 
     public AprilTagAlignCommand(LimelightSubsystem limelight, 
                                CommandSwerveDrivetrain drivetrain,
@@ -29,33 +36,32 @@ public class AprilTagAlignCommand extends Command {
         this.drivetrain = drivetrain;
         this.alignRight = alignRight;
 
-        // Reduced gains for safer movement
-        yController = new PIDController(0.8, 0.0, 0.05);
-        yController.setTolerance(Y_TOLERANCE_METERS);
-
-        // Now controls heading alignment to AprilTag using pose yaw
-        thetaController = new PIDController(1.5, 0.0, 0.1);
-        thetaController.setTolerance(THETA_TOLERANCE_RADIANS);
-        thetaController.enableContinuousInput(-Math.PI, Math.PI);
+        // Controllers for approach phase
+        xController = new PIDController(1.2, 0, 0.1);
+        thetaController = new PIDController(3.0, 0, 0.2);
+        thetaController.setTolerance(ANGLE_TOLERANCE);
+        
+        // Controller for lateral phase
+        yController = new PIDController(1.0, 0, 0.1);
+        yController.setTolerance(POSITION_TOLERANCE);
 
         addRequirements(drivetrain);
     }
 
     @Override
-    public void initialize() { 
+    public void initialize() {
         limelight.setPipeline(0);
         limelight.setLedMode(3);
-
+        currentState = State.APPROACH;
+        
+        // Reset all controllers
+        xController.reset();
         yController.reset();
         thetaController.reset();
-        double desiredY = alignRight ? -DESIRED_OFFSET_METERS : DESIRED_OFFSET_METERS;
-        yController.setSetpoint(desiredY);
-        thetaController.setSetpoint(0);  // Align to face the AprilTag directly
     }
 
     @Override
     public void execute() {
-        // Immediately stop if target lost
         if (!limelight.hasTarget()) {
             drivetrain.setControl(new SwerveRequest.Idle());
             return;
@@ -64,43 +70,73 @@ public class AprilTagAlignCommand extends Command {
         double[] pose = limelight.getTargetPose();
         if (pose == null) return;
 
-        double currentY = pose[1];
-        double yawRadians = Math.toRadians(pose[2]);
+        switch (currentState) {
+            case APPROACH:
+                handleApproachPhase(pose);
+                break;
+            case LATERAL:
+                handleLateralPhase(pose);
+                break;
+        }
+    }
 
-        // Calculate speeds with clamping
-        double ySpeed = clamp(yController.calculate(currentY), -MAX_SPEED, MAX_SPEED);
+    private void handleApproachPhase(double[] pose) {
+        // Calculate distance using target height and camera geometry
+        double verticalAngle = Units.degreesToRadians(limelight.getTargetY()) + CAMERA_PITCH;
+        double distance = (TARGET_HEIGHT - CAMERA_HEIGHT) / Math.tan(verticalAngle);
         
-        // Align to face the AprilTag directly using pose yaw
-        double thetaSpeed = clamp(thetaController.calculate(yawRadians), 
-                               -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
+        // Calculate forward speed to maintain target distance
+        double xSpeed = xController.calculate(distance, TARGET_DISTANCE);
+        
+        // Calculate rotation to center target (tx = 0)
+        double tx = limelight.getTargetX();
+        double rotationSpeed = thetaController.calculate(Units.degreesToRadians(tx), 0);
 
-        // Convert to robot-centric velocities using current heading
-        double vxRobot = -ySpeed * Math.sin(yawRadians);
-        double vyRobot = ySpeed * Math.cos(yawRadians);
+        // Apply movement
+        drivetrain.setControl(
+            driveRequest
+                .withVelocityX(clamp(xSpeed, -MAX_SPEED, MAX_SPEED))
+                .withVelocityY(0)
+                .withRotationalRate(clamp(rotationSpeed, -MAX_SPEED, MAX_SPEED))
+        );
+
+        // Transition to lateral phase when aligned and at distance
+        if (Math.abs(distance - TARGET_DISTANCE) < POSITION_TOLERANCE 
+            && thetaController.atSetpoint()) {
+            currentState = State.LATERAL;
+            yController.setSetpoint(alignRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
+        }
+    }
+
+    private void handleLateralPhase(double[] pose) {
+        // Current lateral position from AprilTag (pose[1])
+        double currentY = pose[1];
+        double ySpeed = yController.calculate(currentY);
+        
+        // Maintain facing direction toward AprilTag
+        double tx = limelight.getTargetX();
+        double rotationSpeed = thetaController.calculate(Units.degreesToRadians(tx), 0);
 
         drivetrain.setControl(
             driveRequest
-                .withVelocityX(vxRobot)
-                .withVelocityY(vyRobot)
-                .withRotationalRate(thetaSpeed)
+                .withVelocityX(0)
+                .withVelocityY(clamp(ySpeed, -MAX_SPEED, MAX_SPEED))
+                .withRotationalRate(clamp(rotationSpeed, -MAX_SPEED, MAX_SPEED))
         );
     }
 
     @Override
     public boolean isFinished() {
-        // Only finish when both controllers are settled AND still seeing target
-        return limelight.hasTarget() && 
-               yController.atSetpoint() && 
-               thetaController.atSetpoint();
+        return currentState == State.LATERAL && yController.atSetpoint();
     }
 
     @Override
     public void end(boolean interrupted) {
         drivetrain.setControl(new SwerveRequest.Idle());
-        limelight.setLedMode(1);  // Return to pipeline-controlled LED mode
+        limelight.setLedMode(1);
     }
 
-    private static double clamp(double value, double min, double max) {
+    private double clamp(double value, double min, double max) {
         return Math.max(min, Math.min(max, value));
     }
 }

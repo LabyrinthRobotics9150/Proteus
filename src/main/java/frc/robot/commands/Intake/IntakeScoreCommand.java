@@ -1,7 +1,6 @@
 package frc.robot.commands.Intake;
 
 import au.grapplerobotics.LaserCan;
-import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
@@ -13,7 +12,7 @@ public class IntakeScoreCommand extends Command {
     private final double normalSpeed;
     private final double slowSpeed;
     private final double reverseSpeed;
-    private final double reverseTime;
+    private final double reverseRotations;
     private final double scoringSpeed;
     private final double detectionThresholdMm;
 
@@ -22,18 +21,19 @@ public class IntakeScoreCommand extends Command {
     }
 
     private State currentState;
-    private final Timer timer = new Timer();
     private boolean isScoringMode;
+    private int undetectedCount = 0;
+    private double startReversePosition;
 
     public IntakeScoreCommand(ElevatorSubsystem elevatorSubsystem, IntakeSubsystem intakeSubsystem) {
         this.elevatorSubsystem = elevatorSubsystem;
         this.intakeSubsystem = intakeSubsystem;
         this.heightThreshold = -0.3;
-        this.normalSpeed = 0.5;  // Increased for intake
+        this.normalSpeed = 0.5;
         this.slowSpeed = 0.2;
-        this.reverseSpeed = 0.3; 
-        this.reverseTime = 0.3;
-        this.scoringSpeed = -0.5; // Negative for reverse scoring
+        this.reverseSpeed = 0.3;
+        this.reverseRotations = 0.5; // Tune this value based on testing
+        this.scoringSpeed = -0.5;
         this.detectionThresholdMm = 30;
 
         addRequirements(intakeSubsystem);
@@ -45,60 +45,66 @@ public class IntakeScoreCommand extends Command {
         isScoringMode = (elevatorHeight >= heightThreshold);
         
         if (isScoringMode) {
-            intakeSubsystem.moveWheel(scoringSpeed); // Reverse for scoring
+            intakeSubsystem.moveWheel(scoringSpeed);
         } else {
             currentState = State.INIT;
-            intakeSubsystem.moveWheel(normalSpeed); // Forward for intake
+            intakeSubsystem.moveWheel(normalSpeed);
+            intakeSubsystem.IntakeWheelsMotor.getEncoder().setPosition(0);
         }
-        timer.reset();
-        timer.stop();
+        undetectedCount = 0;
     }
 
     @Override
     public void execute() {
-        // Continuously check elevator height
         double elevatorHeight = elevatorSubsystem.getHeight();
         boolean nowScoringMode = (elevatorHeight >= heightThreshold);
 
         if (nowScoringMode != isScoringMode) {
-            // Mode changed! Reset state
             isScoringMode = nowScoringMode;
             if (isScoringMode) {
                 intakeSubsystem.moveWheel(scoringSpeed);
             } else {
                 currentState = State.INIT;
                 intakeSubsystem.moveWheel(normalSpeed);
+                intakeSubsystem.IntakeWheelsMotor.getEncoder().setPosition(0);
             }
         }
-
-        System.out.println(isScoringMode);
 
         if (!isScoringMode) {
             switch (currentState) {
                 case INIT:
-                    LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
-                    if (isObjectDetected(meas)) {
-                        intakeSubsystem.moveWheel(slowSpeed); // Slow down
-                        currentState = State.DETECTED_OBJECT;
-                    }
+                    handleInitState();
                     break;
-
                 case DETECTED_OBJECT:
-                    // Keep running slow speed while object is detected
-                    intakeSubsystem.moveWheel(slowSpeed); 
-
-                    LaserCan.Measurement newMeas = intakeSubsystem.laserCan.getMeasurement();
-                    if (!isObjectDetected(newMeas)) {
-                        intakeSubsystem.moveWheel(-reverseSpeed); // Reverse direction
-                        timer.reset();
-                        timer.start();
-                        currentState = State.REVERSING;
-                    }
+                    handleDetectedState();
                     break;
-
                 case REVERSING:
                     break;
             }
+        }
+    }
+
+    private void handleInitState() {
+        LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
+        if (isObjectDetected(meas)) {
+            intakeSubsystem.moveWheel(slowSpeed);
+            currentState = State.DETECTED_OBJECT;
+        }
+    }
+
+    private void handleDetectedState() {
+        LaserCan.Measurement newMeas = intakeSubsystem.laserCan.getMeasurement();
+        if (!isObjectDetected(newMeas)) {
+            undetectedCount++;
+            if (undetectedCount >= 3) { // Debounce check
+                startReversePosition = intakeSubsystem.IntakeWheelsMotor.getEncoder().getPosition();
+                intakeSubsystem.moveWheel(-reverseSpeed);
+                currentState = State.REVERSING;
+                undetectedCount = 0;
+            }
+        } else {
+            undetectedCount = 0;
+            intakeSubsystem.moveWheel(slowSpeed);
         }
     }
 
@@ -111,10 +117,12 @@ public class IntakeScoreCommand extends Command {
     @Override
     public boolean isFinished() {
         if (isScoringMode) {
-            return false; // Run until interrupted
-        } else {
-            return currentState == State.REVERSING && timer.hasElapsed(reverseTime);
+            return false;
+        } else if (currentState == State.REVERSING) {
+            double currentPos = intakeSubsystem.IntakeWheelsMotor.getEncoder().getPosition();
+            return Math.abs(currentPos - startReversePosition) >= reverseRotations;
         }
+        return false;
     }
 
     @Override
