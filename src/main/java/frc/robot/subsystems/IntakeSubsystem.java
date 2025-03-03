@@ -89,4 +89,8 @@ public class IntakeSubsystem extends SubsystemBase {
         IntakeWheelsMotor.stopMotor();
     }
 
+    public double getEncoderPosition() {
+        return IntakeWheelsMotor.getEncoder().getPosition();
+    }
+
 }
