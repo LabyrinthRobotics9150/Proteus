@@ -37,7 +37,10 @@ public class AprilTagAlignCommand extends Command {
     }
 
     @Override
-    public void initialize() {
+    public void initialize(){ 
+        limelight.setPipeline(0);
+        limelight.setLedMode(3);
+
         yController.reset();
         thetaController.reset();
         double desiredY = alignRight ? -DESIRED_OFFSET_METERS : DESIRED_OFFSET_METERS;
@@ -47,14 +50,16 @@ public class AprilTagAlignCommand extends Command {
 
     @Override
     public void execute() {
-        if (!limelight.hasTarget()) {
-            drivetrain.setControl(new SwerveRequest.Idle());
-            return;
-        }
-    
-        double[] pose = limelight.getTargetPose();
-        if (pose == null || pose.length < 3) return;
-    
+      // Check pipeline using subsystem method
+      if (limelight.getCurrentPipeline() != 0) {
+        System.out.println("Wrong pipeline! Current: " + limelight.getCurrentPipeline());
+    }
+    if (!limelight.hasTarget()) {
+        drivetrain.setControl(new SwerveRequest.Idle());
+        return;
+    }
+    // if we are on correct pipeline and it has target, get pose data
+    double[] pose = limelight.getTargetPose();
         double currentY = pose[1];
         double yawDegrees = pose[2]; // Get yaw from pose data
     

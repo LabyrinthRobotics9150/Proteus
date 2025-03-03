@@ -12,7 +12,8 @@ public class LimelightSubsystem extends SubsystemBase {
     }
 
     public boolean hasTarget() {
-        return limelight.getEntry("tv").getDouble(0) == 1;
+        // Check if there's at least one target
+        return limelight.getEntry("tv").getDouble(0) >= 1;
     }
 
     public double getTargetX() {
@@ -24,20 +25,16 @@ public class LimelightSubsystem extends SubsystemBase {
     }
 
     public double[] getTargetPose() {
-        if (!hasTarget()) {
-            return null;
-        }
-        
+        // Remove the hasTarget() check here - rely on botpose validity
         double[] botpose = limelight.getEntry("botpose").getDoubleArray(new double[0]);
         
-        if (botpose.length < 6) {
-            return null;
-        }
+        // Require full 6-element pose data
+        if (botpose.length < 6) return null;
         
         return new double[] {
             botpose[0],  // X (meters)
-            botpose[1],  // Y (meters, positive left)
-            botpose[5]   // Yaw (degrees, CCW positive)
+            botpose[1],  // Y (meters)
+            botpose[5]   // Yaw (degrees)
         };
     }
 
@@ -47,5 +44,9 @@ public class LimelightSubsystem extends SubsystemBase {
 
     public void setPipeline(int pipeline) {
         limelight.getEntry("pipeline").setNumber(pipeline);
+    }
+
+    public double getCurrentPipeline() {
+        return limelight.getEntry("getpipe").getDouble(-1);
     }
 }
