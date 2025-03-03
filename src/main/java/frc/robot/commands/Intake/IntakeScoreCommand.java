@@ -27,11 +27,11 @@ public class IntakeScoreCommand extends Command {
     public IntakeScoreCommand(ElevatorSubsystem elevatorSubsystem, IntakeSubsystem intakeSubsystem) {
         this.elevatorSubsystem = elevatorSubsystem;
         this.intakeSubsystem = intakeSubsystem;
-        this.heightThreshold = -0.3;
-        this.normalSpeed = 0.5;  // Increased for intake
-        this.slowSpeed = 0.2;
-        this.reverseSpeed = 0.3; 
-        this.reverseRotations = 0.5; // Reverse for 0.5 rotations
+        this.heightThreshold = 0.4;
+        this.normalSpeed = 0.07;  // Increased for intake
+        this.slowSpeed = 0.05;
+        this.reverseSpeed = 0.05; 
+        this.reverseRotations = 2.5; // Reverse for 0.5 rotations
         this.scoringSpeed = -0.5; // Negative for reverse scoring
         this.detectionThresholdMm = 30;
 
