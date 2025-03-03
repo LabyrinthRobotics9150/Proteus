@@ -20,7 +20,7 @@ import frc.robot.commands.Intake.BallCommand;
 import frc.robot.commands.Intake.IntakeScoreCommand;
 import frc.robot.commands.Intake.MovePivotManualCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
-import frc.robot.commands.Limelight.AprilTagAlignCommand;
+import frc.robot.commands.Limelight.AutoAlignCommand;
 import frc.robot.commands.Limelight.FollowClosestAprilTagCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
@@ -45,8 +45,8 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
   // primary
   IntakeScoreCommand intakeScoreCommand = new IntakeScoreCommand(m_elevator, m_intake);
-  AprilTagAlignCommand alignRightCommand = new AprilTagAlignCommand( limelight, drivetrain);//,  true);
-  AprilTagAlignCommand alignLeftCommand = new AprilTagAlignCommand(limelight, drivetrain);//, false);
+  AutoAlignCommand alignRightCommand = new AutoAlignCommand( limelight, drivetrain,  true);
+  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(limelight, drivetrain, false);
   
 
   // temporary

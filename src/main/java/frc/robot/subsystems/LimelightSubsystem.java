@@ -50,4 +50,17 @@ public class LimelightSubsystem extends SubsystemBase {
         double pipe = limelight.getEntry("getpipe").getDouble(-1);
         return pipe;
     }
+
+    public boolean isPipelineValid() {
+        return getCurrentPipeline() == 0;
+    }
+    
+    public void enableVisionProcessing() {
+        setPipeline(0);
+        setLedMode(3);
+    }
+    
+    public void disableVisionProcessing() {
+        setLedMode(1);
+    }
 }
