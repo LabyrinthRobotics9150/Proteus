@@ -159,13 +159,13 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     if(TESTING_MODE) {
 
-    // Left Bumper - manual pivot raise
+    // Left Bumper - align left
     m_secondaryController.leftBumper()
-    .whileTrue(MovePivotManualCommand.movePivot(m_intake, .05));
+    .whileTrue(alignLeftCommand);
 
-    // Right Bumper - manual pivot lower
+    // Right Bumper - align right
     m_secondaryController.rightBumper()
-    .whileTrue(MovePivotManualCommand.movePivot(m_intake, -.05));
+    .whileTrue(alignRightCommand);
 
     // Right Trigger - manual elevator raise
     //m_primaryController.rightTrigger()
