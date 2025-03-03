@@ -16,22 +16,23 @@ public class AprilTagAlignCommand extends Command {
     private final PIDController xController;
     private final PIDController yController;
     private final PIDController thetaController;
-    // Minimum command thresholds to overcome static friction
+    
+    // Minimum command thresholds to overcome static friction.
     private static final double MIN_LINEAR_COMMAND = 0.05;
     private static final double MIN_ANGULAR_COMMAND = 0.05;
     
-    // Safety speed limits
+    // Safety speed limits.
     private static final double MAX_LINEAR_SPEED = 0.4;
     private static final double MAX_ANGULAR_SPEED = Math.PI / 6;
-
-    // Target and tolerance constants
-    private static final double TARGET_DISTANCE = 0.3; // meters
-    private static final double LATERAL_OFFSET = 0.5;  // meters
+    
+    // Target and tolerance constants.
+    // Note: With your drivetrain’s coordinate system (see CommandSwerveDrivetrain),
+    // objects in front of the robot typically yield a negative X value.
+    // Therefore, we set the desired X (forward) distance to -0.3 m.
+    private static final double TARGET_DISTANCE = -0.3; // meters
+    private static final double LATERAL_OFFSET = 0.5;     // meters
     private static final double POSITION_TOLERANCE = 0.03;
     private static final double ANGLE_TOLERANCE = Units.degreesToRadians(1.0);
-    
-    // Using a fresh SwerveRequest each time for clarity
-    // (Alternatively, you could chain modifications on a single instance if it is stateless.)
     
     private State currentState = State.ROTATE;
 
@@ -42,13 +43,14 @@ public class AprilTagAlignCommand extends Command {
         this.drivetrain = drivetrain;
         this.alignRight = alignRight;
         
-        // Initialize PID controllers with tuned gains
+        // Initialize PID controllers with tuned gains.
+        // (These gains may require further tuning for your system.)
         xController = new PIDController(1.2, 0, 0.1);
         yController = new PIDController(1.0, 0, 0.1);
         thetaController = new PIDController(2.0, 0, 0.15);
         thetaController.enableContinuousInput(-Math.PI, Math.PI);
         
-        // Set controller tolerances so that atSetpoint() works correctly.
+        // Set tolerances so that atSetpoint() reliably indicates when the error is small.
         xController.setTolerance(POSITION_TOLERANCE);
         yController.setTolerance(POSITION_TOLERANCE);
         thetaController.setTolerance(ANGLE_TOLERANCE);
@@ -64,7 +66,7 @@ public class AprilTagAlignCommand extends Command {
         xController.reset();
         yController.reset();
         thetaController.reset();
-        // Reset setpoints (for theta, we want 0; for x and y, they will be set in later phases)
+        // For rotation, we want to face the target (i.e. 0 yaw error).
         thetaController.setSetpoint(0);
     }
 
@@ -78,7 +80,10 @@ public class AprilTagAlignCommand extends Command {
         double[] pose = limelight.getTargetPose();
         if (pose == null) return;
 
-        // pose[0]: forward distance, pose[1]: lateral offset, pose[2]: yaw (degrees)
+        // The LimelightSubsystem returns:
+        //   pose[0] = X (meters) — forward distance in robot space,
+        //   pose[1] = Y (meters) — lateral offset in robot space,
+        //   pose[2] = Yaw (degrees).
         double currentX = pose[0];
         double currentY = pose[1];
         double currentYaw = Math.toRadians(pose[2]);
@@ -97,20 +102,20 @@ public class AprilTagAlignCommand extends Command {
     }
 
     private void handleRotatePhase(double currentYaw) {
-        // Use theta PID to rotate toward 0 (i.e. facing the tag)
         double rotationSpeed = thetaController.calculate(currentYaw);
         rotationSpeed = applyMinCommand(rotationSpeed, MIN_ANGULAR_COMMAND);
         rotationSpeed = clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
 
-        SwerveRequest request = new SwerveRequest.RobotCentric()
-            .withVelocityX(0)
-            .withVelocityY(0)
-            .withRotationalRate(rotationSpeed);
-        drivetrain.setControl(request);
+        drivetrain.setControl(
+            new SwerveRequest.RobotCentric()
+                .withVelocityX(0)
+                .withVelocityY(0)
+                .withRotationalRate(rotationSpeed)
+        );
 
-        // Transition when we are aligned (using tolerance via atSetpoint())
         if (thetaController.atSetpoint()) {
             currentState = State.APPROACH;
+            // In approach, we want to drive until X (forward) equals TARGET_DISTANCE.
             xController.setSetpoint(TARGET_DISTANCE);
         }
     }
@@ -118,45 +123,46 @@ public class AprilTagAlignCommand extends Command {
     private void handleApproachPhase(double currentX, double currentYaw) {
         double xSpeed = xController.calculate(currentX);
         xSpeed = applyMinCommand(xSpeed, MIN_LINEAR_COMMAND);
-        xSpeed = clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED); // negative sign per robot coordinate conventions
+        xSpeed = clamp(xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
 
         double rotationSpeed = thetaController.calculate(currentYaw);
         rotationSpeed = applyMinCommand(rotationSpeed, MIN_ANGULAR_COMMAND);
         rotationSpeed = clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
 
-        SwerveRequest request = new SwerveRequest.RobotCentric()
-            .withVelocityX(xSpeed)
-            .withVelocityY(0)
-            .withRotationalRate(rotationSpeed);
-        drivetrain.setControl(request);
+        drivetrain.setControl(
+            new SwerveRequest.RobotCentric()
+                .withVelocityX(xSpeed)
+                .withVelocityY(0)
+                .withRotationalRate(rotationSpeed)
+        );
 
-        // Transition when within tolerance for distance and angle
-        if (Math.abs(currentX - TARGET_DISTANCE) < POSITION_TOLERANCE && Math.abs(currentYaw) < ANGLE_TOLERANCE) {
+        if (Math.abs(currentX - TARGET_DISTANCE) < POSITION_TOLERANCE &&
+            Math.abs(currentYaw) < ANGLE_TOLERANCE) {
             currentState = State.LATERAL;
+            // Set lateral setpoint; note the sign is chosen based on whether you want to align right or left.
             yController.setSetpoint(alignRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
         }
     }
 
     private void handleLateralPhase(double currentX, double currentY, double currentYaw) {
-        // Continue to maintain forward distance with xController and align using thetaController,
-        // while also adjusting laterally via yController.
         double xSpeed = xController.calculate(currentX);
         xSpeed = applyMinCommand(xSpeed, MIN_LINEAR_COMMAND);
-        xSpeed = clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
+        xSpeed = clamp(xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
 
         double ySpeed = yController.calculate(currentY);
         ySpeed = applyMinCommand(ySpeed, MIN_LINEAR_COMMAND);
-        ySpeed = clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
+        ySpeed = clamp(ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED);
 
         double rotationSpeed = thetaController.calculate(currentYaw);
         rotationSpeed = applyMinCommand(rotationSpeed, MIN_ANGULAR_COMMAND);
         rotationSpeed = clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED);
 
-        SwerveRequest request = new SwerveRequest.RobotCentric()
-            .withVelocityX(xSpeed)
-            .withVelocityY(ySpeed)
-            .withRotationalRate(rotationSpeed);
-        drivetrain.setControl(request);
+        drivetrain.setControl(
+            new SwerveRequest.RobotCentric()
+                .withVelocityX(xSpeed)
+                .withVelocityY(ySpeed)
+                .withRotationalRate(rotationSpeed)
+        );
     }
 
     @Override
@@ -174,8 +180,8 @@ public class AprilTagAlignCommand extends Command {
     }
 
     /**
-     * Applies a minimum command threshold: if the output is nonzero but below the minimum, 
-     * it is bumped up to the minimum in magnitude.
+     * Applies a minimum command threshold: if the PID output is nonzero but its magnitude is less
+     * than the minimum, it is bumped up to that minimum value (preserving its sign).
      */
     private double applyMinCommand(double output, double minCommand) {
         if (output != 0 && Math.abs(output) < minCommand) {

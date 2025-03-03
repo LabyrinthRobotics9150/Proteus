@@ -43,13 +43,11 @@ public class LimelightSubsystem extends SubsystemBase {
     }
 
     public void setPipeline(int pipeline) {
-        System.out.println("Setting pipeline to " + pipeline + " at " + System.currentTimeMillis());
         limelight.getEntry("pipeline").setNumber(pipeline);
     }
 
     public double getCurrentPipeline() {
         double pipe = limelight.getEntry("getpipe").getDouble(-1);
-        System.out.println("Current pipeline: " + pipe + " at " + System.currentTimeMillis());
         return pipe;
     }
 }
