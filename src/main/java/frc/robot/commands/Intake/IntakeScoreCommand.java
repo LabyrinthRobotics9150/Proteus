@@ -29,11 +29,11 @@ public class IntakeScoreCommand extends Command {
         this.intakeSubsystem = intakeSubsystem;
         this.heightThreshold = 0.4;
         this.normalSpeed = 0.07;
-        this.slowSpeed = 0.05;
-        this.reverseSpeed = 0.05; 
-        this.reverseRotations = 2.5;
+        this.slowSpeed = 0.04;
+        this.reverseSpeed = 0.04; 
+        this.reverseRotations = 1;
         this.scoringSpeed = -0.5;
-        this.detectionThresholdMm = 30;
+        this.detectionThresholdMm = 20;
 
         addRequirements(intakeSubsystem);
     }
@@ -103,7 +103,6 @@ public class IntakeScoreCommand extends Command {
     }
 
     private boolean isObjectDetected(LaserCan.Measurement meas) {
-        System.out.println(meas);
         return meas != null 
             && meas.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT
             && meas.distance_mm < detectionThresholdMm;
