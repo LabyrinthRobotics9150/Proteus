@@ -71,7 +71,7 @@ public class IntakeScoreCommand extends Command {
         if (!isScoringMode) {
             switch (currentState) {
                 case INIT:
-                    LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
+                    LaserCan.Measurement meas = intakeSubsystem.laserCan0.getMeasurement();
                     if (isObjectDetected(meas)) {
                         intakeSubsystem.moveWheel(slowSpeed); 
                         currentState = State.DETECTED_OBJECT;
@@ -82,7 +82,7 @@ public class IntakeScoreCommand extends Command {
                     // Keep running slow speed while object is detected
                     intakeSubsystem.moveWheel(slowSpeed); 
 
-                    LaserCan.Measurement newMeas = intakeSubsystem.laserCan.getMeasurement();
+                    LaserCan.Measurement newMeas = intakeSubsystem.laserCan0.getMeasurement();
                     if (!isObjectDetected(newMeas)) {
                         intakeSubsystem.moveWheel(-reverseSpeed); // Reverse direction
                         initialEncoderPosition = intakeSubsystem.getEncoderPosition(); // Reset encoder position
