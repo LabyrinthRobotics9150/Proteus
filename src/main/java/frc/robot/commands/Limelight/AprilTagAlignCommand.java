@@ -20,7 +20,7 @@ public class AprilTagAlignCommand extends Command {
     private State currentState = State.APPROACH;
 
     // Constants
-    private static final double TARGET_DISTANCE = 0.3; // meters
+    private static final double TARGET_DISTANCE = 0.1; // meters
     private static final double LATERAL_OFFSET = 0.5; // meters
     private static final double POSITION_TOLERANCE = 0.05;
     private static final double ANGLE_TOLERANCE = Units.degreesToRadians(2);

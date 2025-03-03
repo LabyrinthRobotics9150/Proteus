@@ -28,11 +28,11 @@ public class IntakeScoreCommand extends Command {
     public IntakeScoreCommand(ElevatorSubsystem elevatorSubsystem, IntakeSubsystem intakeSubsystem) {
         this.elevatorSubsystem = elevatorSubsystem;
         this.intakeSubsystem = intakeSubsystem;
-        this.heightThreshold = -0.3;
-        this.normalSpeed = 0.5;
+        this.heightThreshold = 0.3;
+        this.normalSpeed = 0.3;
         this.slowSpeed = 0.2;
         this.reverseSpeed = 0.3;
-        this.reverseRotations = 0.5; // Tune this value based on testing
+        this.reverseRotations = 0.5;
         this.scoringSpeed = -0.5;
         this.detectionThresholdMm = 30;
 
