@@ -70,11 +70,11 @@ public class AutoAlignCommand extends Command {
         if (pose == null) return;
 
         switch (currentState) {
-            case ROTATE:
-                handleRotation(pose);
-                break;
             case APPROACH:
                 handleApproach(pose);
+                break;
+            case ROTATE:
+                handleRotation(pose);
                 break;
             case LATERAL:
                 handleLateral(pose);
