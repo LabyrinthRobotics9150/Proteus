@@ -28,6 +28,8 @@ public class AutoAlignCommand extends Command {
     private static final double POSE_TOLERANCE = 0.05;
     private static final double ANGLE_TOLERANCE = Units.degreesToRadians(1.5);
 
+    private double[] pose;
+
     private final SwerveRequest.RobotCentric driveRequest = new SwerveRequest.RobotCentric();
 
     public AutoAlignCommand(LimelightSubsystem limelight, 
@@ -66,7 +68,7 @@ public class AutoAlignCommand extends Command {
             return;
         }
 
-        double[] pose = limelight.getTargetPose();
+        pose = limelight.getTargetPose();
         if (pose == null) return;
 
         switch (currentState) {
@@ -80,6 +82,11 @@ public class AutoAlignCommand extends Command {
                 handleLateral(pose);
                 break;
         }
+    }
+
+    @Override
+    public void periodic(){
+        
     }
 
     private void handleRotation(double[] pose) {
