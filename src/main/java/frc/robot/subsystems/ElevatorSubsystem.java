@@ -136,7 +136,7 @@ public class ElevatorSubsystem extends SubsystemBase {
                     if(reverseLimitSwitch.isPressed()) {
                         elevatorEncoder.setPosition(0);
                     }
-                killElevator();
+                    killElevator();
                 motionProfile = null;
                 System.out.println("Limit switch activated. Elevator movement halted.");
             } else {

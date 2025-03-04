@@ -53,7 +53,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   FollowClosestAprilTagCommand closestAprilTagCommand = new FollowClosestAprilTagCommand(limelight, drivetrain);
 
   // secondary
-    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 4.0);
+    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.7);
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, 0);
