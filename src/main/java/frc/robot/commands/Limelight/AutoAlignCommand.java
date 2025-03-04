@@ -84,11 +84,6 @@ public class AutoAlignCommand extends Command {
         }
     }
 
-    @Override
-    public void periodic(){
-        
-    }
-
     private void handleRotation(double[] pose) {
         double currentYaw = Math.toRadians(pose[2]);
         double rotationSpeed = thetaController.calculate(currentYaw, 0);
