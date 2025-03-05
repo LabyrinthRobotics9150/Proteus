@@ -50,7 +50,7 @@ public class AutoAlignCommand extends Command {
     @Override
     public void initialize() {
         limelight.setPipeline(0);
-        limelight.setLedMode(3);
+        limelight.setLedMode(0);
         currentState = AlignmentState.ROTATE;
         resetControllers();
     }
@@ -75,12 +75,12 @@ public class AutoAlignCommand extends Command {
             case ROTATE:
                 handleRotation(pose);
                 break;
-            case APPROACH:
-                handleApproach(pose);
-                break;
-            case LATERAL:
-                handleLateral(pose);
-                break;
+            //case APPROACH:
+            //    handleApproach(pose);
+            //    break;
+            //case LATERAL:
+            //    handleLateral(pose);
+            //    break;
         }
     }
 
@@ -99,9 +99,9 @@ public class AutoAlignCommand extends Command {
 
         drivetrain.setControl(
             driveRequest
-                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
+                .withVelocityX(clamp(xSpeed, MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withVelocityY(clamp(ySpeed, MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withRotationalRate(clamp(rotationSpeed, MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
         );
 
         if (xController.atSetpoint() && yController.atSetpoint() && thetaController.atSetpoint()) {
