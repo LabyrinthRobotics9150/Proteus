@@ -2,9 +2,11 @@ package frc.robot.commands.Limelight;
 
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.LimelightSubsystem;
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
 public class AutoAlignCommand extends Command {
@@ -16,35 +18,38 @@ public class AutoAlignCommand extends Command {
     private AlignmentState currentState = AlignmentState.ROTATE;
 
     // PID Controllers
-    private final PIDController xController = new PIDController(1.2, 0, 0.1);
-    private final PIDController yController = new PIDController(1.0, 0, 0.1);
-    private final PIDController thetaController = new PIDController(2.5, 0, 0.2);
+    private final PIDController xController = new PIDController(0.4, 0, 0.0006);
+    private final PIDController yController = new PIDController(0.3, 0, 0);
+    private final PIDController thetaController = new PIDController(0.05, 0, 0.001);
 
     // Configuration
     private static final double TARGET_DISTANCE = 0.5; // meters
     private static final double LATERAL_OFFSET = 0.3; // meters
-    private static final double MAX_LINEAR_SPEED = 0.75;
-    private static final double MAX_ANGULAR_SPEED = Math.PI/4;
-    private static final double POSE_TOLERANCE = 0.05;
-    private static final double ANGLE_TOLERANCE = Units.degreesToRadians(1.5);
+    private static final double MAX_LINEAR_SPEED = 4.0; // m/s
+    private static final double MAX_ANGULAR_SPEED = Math.PI; // rad/s
+    private static final double POSE_TOLERANCE = 0.01;
+    private static final double ANGLE_TOLERANCE = Units.degreesToRadians(0.5);
 
-    private double[] pose;
-
-    private final SwerveRequest.RobotCentric driveRequest = new SwerveRequest.RobotCentric();
+    private final SwerveRequest.RobotCentric driveRequest = 
+        new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    private final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
 
     public AutoAlignCommand(LimelightSubsystem limelight, 
-                           CommandSwerveDrivetrain drivetrain,
-                           boolean targetRight) {
+                          CommandSwerveDrivetrain drivetrain,
+                          boolean targetRight) {
         this.limelight = limelight;
         this.drivetrain = drivetrain;
         this.targetRight = targetRight;
 
+        configureControllers();
+        addRequirements(drivetrain);
+    }
+
+    private void configureControllers() {
         thetaController.enableContinuousInput(-Math.PI, Math.PI);
         xController.setTolerance(POSE_TOLERANCE);
         yController.setTolerance(POSE_TOLERANCE);
         thetaController.setTolerance(ANGLE_TOLERANCE);
-
-        addRequirements(drivetrain);
     }
 
     @Override
@@ -64,110 +69,100 @@ public class AutoAlignCommand extends Command {
     @Override
     public void execute() {
         if (!limelight.hasTarget()) {
-            drivetrain.setControl(new SwerveRequest.Idle());
+            drivetrain.setControl(idleRequest);
             return;
         }
 
-        pose = limelight.getTargetPose();
-        if (pose == null) return;
+        var targetPose = limelight.getTargetPose();
+        if (targetPose == null) return;
+
+        double currentX = targetPose[0];
+        double currentY = targetPose[1];
+        double currentYaw = Math.toRadians(targetPose[2]);
 
         switch (currentState) {
-            case ROTATE:
-                handleRotation(pose);
-                break;
-            case APPROACH:
-                handleApproach(pose);
-                break;
-            case LATERAL:
-                handleLateral(pose);
-                break;
+            case ROTATE -> handleRotation(currentX, currentY, currentYaw);
+            case APPROACH -> handleApproach(currentX, currentY, currentYaw);
+            case LATERAL -> handleLateral(currentX, currentY, currentYaw);
         }
+
+        updateTelemetry();
     }
 
-    private void handleRotation(double[] pose) {
+    private void handleRotation(double x, double y, double yaw) {
         xController.setSetpoint(0);
         yController.setSetpoint(0);
         thetaController.setSetpoint(0);
 
-        double currentX = pose[0];
-        double currentY = pose[1];
-        double currentYaw = Math.toRadians(pose[2]);
+        double xSpeed = xController.calculate(x);
+        double ySpeed = yController.calculate(y);
+        double rotation = thetaController.calculate(yaw);
 
-        double xSpeed = xController.calculate(currentX);
-        double ySpeed = yController.calculate(currentY);
-        double rotationSpeed = thetaController.calculate(currentYaw);
-
-        drivetrain.setControl(
-            driveRequest
-                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
-        );
-
-        if (xController.atSetpoint() && yController.atSetpoint() && thetaController.atSetpoint()) {
+        applyMovement(-xSpeed, -ySpeed, rotation);
+        
+        if (allControllersAtSetpoint()) {
             currentState = AlignmentState.APPROACH;
             xController.setSetpoint(TARGET_DISTANCE);
         }
     }
 
-    private void handleApproach(double[] pose) {
-        xController.setSetpoint(TARGET_DISTANCE);
+    private void handleApproach(double x, double y, double yaw) {
         yController.setSetpoint(0);
         thetaController.setSetpoint(0);
 
-        double currentX = pose[0];
-        double currentY = pose[1];
-        double currentYaw = Math.toRadians(pose[2]);
+        double xSpeed = xController.calculate(x);
+        double ySpeed = yController.calculate(y);
+        double rotation = thetaController.calculate(yaw);
 
-        double xSpeed = xController.calculate(currentX);
-        double ySpeed = yController.calculate(currentY);
-        double rotationSpeed = thetaController.calculate(currentYaw);
+        applyMovement(-xSpeed, -ySpeed, rotation);
 
-        drivetrain.setControl(
-            driveRequest
-                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
-        );
-
-        if (xController.atSetpoint() && yController.atSetpoint() && thetaController.atSetpoint()) {
+        if (allControllersAtSetpoint()) {
             currentState = AlignmentState.LATERAL;
             yController.setSetpoint(targetRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
         }
     }
 
-    private void handleLateral(double[] pose) {
+    private void handleLateral(double x, double y, double yaw) {
         xController.setSetpoint(TARGET_DISTANCE);
-        yController.setSetpoint(targetRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
         thetaController.setSetpoint(0);
 
-        double currentX = pose[0];
-        double currentY = pose[1];
-        double currentYaw = Math.toRadians(pose[2]);
+        double xSpeed = xController.calculate(x);
+        double ySpeed = yController.calculate(y);
+        double rotation = thetaController.calculate(yaw);
 
-        double xSpeed = xController.calculate(currentX);
-        double ySpeed = yController.calculate(currentY);
-        double rotationSpeed = thetaController.calculate(currentYaw);
+        applyMovement(-xSpeed, -ySpeed, rotation);
+    }
 
+    private void applyMovement(double xSpeed, double ySpeed, double rotation) {
         drivetrain.setControl(
             driveRequest
-                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
+                .withVelocityX(clamp(xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withVelocityY(clamp(ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withRotationalRate(clamp(rotation, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
         );
     }
 
-    @Override
-    public boolean isFinished() {
-        return currentState == AlignmentState.LATERAL && 
-               xController.atSetpoint() && 
+    private void updateTelemetry() {
+        SmartDashboard.putNumber("Alignment/X Error", xController.getPositionError());
+        SmartDashboard.putNumber("Alignment/Y Error", yController.getPositionError());
+        SmartDashboard.putNumber("Alignment/Theta Error", thetaController.getPositionError());
+        SmartDashboard.putString("Alignment/State", currentState.name());
+    }
+
+    private boolean allControllersAtSetpoint() {
+        return xController.atSetpoint() && 
                yController.atSetpoint() && 
                thetaController.atSetpoint();
     }
 
     @Override
+    public boolean isFinished() {
+        return currentState == AlignmentState.LATERAL && allControllersAtSetpoint();
+    }
+
+    @Override
     public void end(boolean interrupted) {
-        drivetrain.setControl(new SwerveRequest.Idle());
+        drivetrain.setControl(idleRequest);
         limelight.setLedMode(1);
     }
 
