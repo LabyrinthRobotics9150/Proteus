@@ -98,8 +98,8 @@ public class ElevatorSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         // Update tuning constants from SmartDashboard.
-        double kG = SmartDashboard.getNumber("Gravity FF", .8);
-        double kP = SmartDashboard.getNumber("Elevator kP", 0.5);
+        double kG = SmartDashboard.getNumber("Gravity FF", .6);
+        double kP = SmartDashboard.getNumber("Elevator kP", 0.7);
         double kI = SmartDashboard.getNumber("Elevator kI", 0.0);
         double kD = SmartDashboard.getNumber("Elevator kD", 0.05);
         if (SmartDashboard.getBoolean("Overwrite Elevator Config", false)) {

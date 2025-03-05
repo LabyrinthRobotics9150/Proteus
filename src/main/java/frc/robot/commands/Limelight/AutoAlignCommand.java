@@ -72,11 +72,11 @@ public class AutoAlignCommand extends Command {
         if (pose == null) return;
 
         switch (currentState) {
-            case APPROACH:
-                handleApproach(pose);
-                break;
             case ROTATE:
                 handleRotation(pose);
+                break;
+            case APPROACH:
+                handleApproach(pose);
                 break;
             case LATERAL:
                 handleLateral(pose);
@@ -85,50 +85,69 @@ public class AutoAlignCommand extends Command {
     }
 
     private void handleRotation(double[] pose) {
-        double currentYaw = Math.toRadians(pose[2]);
-        double rotationSpeed = thetaController.calculate(currentYaw, 0);
-        
-        drivetrain.setControl(
-            driveRequest
-                .withVelocityX(0)
-                .withVelocityY(0)
-                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
-        );
+        xController.setSetpoint(0);
+        yController.setSetpoint(0);
+        thetaController.setSetpoint(0);
 
-        if (thetaController.atSetpoint()) {
-            currentState = AlignmentState.APPROACH;
-            xController.setSetpoint(TARGET_DISTANCE);
-        }
-    }
-
-    private void handleApproach(double[] pose) {
-        double currentX = pose[0];
-        double currentYaw = Math.toRadians(pose[2]);
-        
-        double xSpeed = xController.calculate(currentX);
-        double rotationSpeed = thetaController.calculate(currentYaw, 0);
-
-        drivetrain.setControl(
-            driveRequest
-                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withVelocityY(0)
-                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
-        );
-
-        if (xController.atSetpoint() && thetaController.atSetpoint()) {
-            currentState = AlignmentState.LATERAL;
-            yController.setSetpoint(targetRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
-        }
-    }
-
-    private void handleLateral(double[] pose) {
         double currentX = pose[0];
         double currentY = pose[1];
         double currentYaw = Math.toRadians(pose[2]);
 
         double xSpeed = xController.calculate(currentX);
         double ySpeed = yController.calculate(currentY);
-        double rotationSpeed = thetaController.calculate(currentYaw, 0);
+        double rotationSpeed = thetaController.calculate(currentYaw);
+
+        drivetrain.setControl(
+            driveRequest
+                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
+        );
+
+        if (xController.atSetpoint() && yController.atSetpoint() && thetaController.atSetpoint()) {
+            currentState = AlignmentState.APPROACH;
+            xController.setSetpoint(TARGET_DISTANCE);
+        }
+    }
+
+    private void handleApproach(double[] pose) {
+        xController.setSetpoint(TARGET_DISTANCE);
+        yController.setSetpoint(0);
+        thetaController.setSetpoint(0);
+
+        double currentX = pose[0];
+        double currentY = pose[1];
+        double currentYaw = Math.toRadians(pose[2]);
+
+        double xSpeed = xController.calculate(currentX);
+        double ySpeed = yController.calculate(currentY);
+        double rotationSpeed = thetaController.calculate(currentYaw);
+
+        drivetrain.setControl(
+            driveRequest
+                .withVelocityX(clamp(-xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withVelocityY(clamp(-ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withRotationalRate(clamp(rotationSpeed, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
+        );
+
+        if (xController.atSetpoint() && yController.atSetpoint() && thetaController.atSetpoint()) {
+            currentState = AlignmentState.LATERAL;
+            yController.setSetpoint(targetRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
+        }
+    }
+
+    private void handleLateral(double[] pose) {
+        xController.setSetpoint(TARGET_DISTANCE);
+        yController.setSetpoint(targetRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
+        thetaController.setSetpoint(0);
+
+        double currentX = pose[0];
+        double currentY = pose[1];
+        double currentYaw = Math.toRadians(pose[2]);
+
+        double xSpeed = xController.calculate(currentX);
+        double ySpeed = yController.calculate(currentY);
+        double rotationSpeed = thetaController.calculate(currentYaw);
 
         drivetrain.setControl(
             driveRequest
