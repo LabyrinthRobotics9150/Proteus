@@ -130,32 +130,21 @@ public class ElevatorSubsystem extends SubsystemBase {
             SmartDashboard.putNumber("Position Error", currentState.position - elevatorEncoder.getPosition());
             SmartDashboard.putNumber("Velocity Error", currentState.velocity - elevatorEncoder.getVelocity());
 
-            // Check limit switches before commanding movement.
-            if ((forwardLimitSwitch.isPressed() && targetState.position > getHeight()) ||
-                (reverseLimitSwitch.isPressed() && targetState.position < getHeight())) {
-                    if(reverseLimitSwitch.isPressed()) {
-                        elevatorEncoder.setPosition(0);
-                    }
-                    killElevator();
-                motionProfile = null;
-                System.out.println("Limit switch activated. Elevator movement halted.");
-            } else {
-                // Define a velocity feedforward constant.
-                double kV = 12.0;
-                double direction = Math.signum(currentState.velocity); // +1 for up, -1 for down, 0 for stationary
-                double arbFF = (direction * kG) + (kV * (currentState.velocity / freeSpeed));
-                controller.setReference(
-                    currentState.position,
-                    SparkBase.ControlType.kPosition,
-                    ClosedLoopSlot.kSlot0,
-                    arbFF,
-                    SparkClosedLoopController.ArbFFUnits.kVoltage
-                );
-                // Mirror the leader's command to the follower.
-                double leaderCommand = elevatorMotor.get();
+            // Define a velocity feedforward constant.
+            double kV = 12.0;
+            double direction = Math.signum(currentState.velocity); // +1 for up, -1 for down, 0 for stationary
+            double arbFF = (direction * kG) + (kV * (currentState.velocity / freeSpeed));
+            controller.setReference(
+                currentState.position,
+                SparkBase.ControlType.kPosition,
+                ClosedLoopSlot.kSlot0,
+                arbFF,
+                SparkClosedLoopController.ArbFFUnits.kVoltage
+            );
+            // Mirror the leader's command to the follower.
+            double leaderCommand = elevatorMotor.get();
                 followerMotor.set(leaderCommand);
             }
-        }
     }
 
     public void setElevatorSpeed(double speed) {

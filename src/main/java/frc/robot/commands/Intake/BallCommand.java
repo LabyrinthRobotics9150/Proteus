@@ -18,12 +18,14 @@ public class BallCommand extends Command {
 
     @Override
     public void execute() {
+        intake.moveWheel(.1);
         // now handled in subsystem
     }
 
     @Override
     public void end(boolean interrupted) {
-        intake.setHeight(intake.HOME_POSITION); 
+        intake.setHeight(intake.HOME_POSITION);
+        intake.moveWheel(0); 
     }
 
     @Override

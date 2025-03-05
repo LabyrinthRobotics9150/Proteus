@@ -19,16 +19,15 @@ public class IntakeSubsystem extends SubsystemBase {
     private final PIDController pidController = new PIDController(0.5, 0, 0);
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
-    public double HOME_POSITION = 0.83;
+    public double HOME_POSITION = 0.88;
     public double BALL_POSITION = 0.38;
 
     // (max velocity and acceleration)
-    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.01, 0.01); // Adjust values as needed
+    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.1, 0.05); // Adjust values as needed
 
     // profile states
     private TrapezoidProfile.State targetState = new TrapezoidProfile.State(HOME_POSITION, 0);
     private TrapezoidProfile.State currentState = new TrapezoidProfile.State(HOME_POSITION, 0);
-
     private final Timer timer = new Timer();
     private TrapezoidProfile profile = new TrapezoidProfile(constraints);
 

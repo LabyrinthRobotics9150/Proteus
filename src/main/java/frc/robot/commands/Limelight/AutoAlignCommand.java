@@ -55,7 +55,7 @@ public class AutoAlignCommand extends Command {
     @Override
     public void initialize() {
         limelight.setPipeline(0);
-        limelight.setLedMode(3);
+        limelight.setLedMode(0);
         currentState = AlignmentState.ROTATE;
         resetControllers();
     }
@@ -81,9 +81,21 @@ public class AutoAlignCommand extends Command {
         double currentYaw = Math.toRadians(targetPose[2]);
 
         switch (currentState) {
+<<<<<<< HEAD
             case ROTATE -> handleRotation(currentX, currentY, currentYaw);
             case APPROACH -> handleApproach(currentX, currentY, currentYaw);
             case LATERAL -> handleLateral(currentX, currentY, currentYaw);
+=======
+            case ROTATE:
+                handleRotation(pose);
+                break;
+            //case APPROACH:
+            //    handleApproach(pose);
+            //    break;
+            //case LATERAL:
+            //    handleLateral(pose);
+            //    break;
+>>>>>>> b14315cdf538300819d773ba579fc973a41d8ace
         }
 
         updateTelemetry();
@@ -98,9 +110,20 @@ public class AutoAlignCommand extends Command {
         double ySpeed = yController.calculate(y);
         double rotation = thetaController.calculate(yaw);
 
+<<<<<<< HEAD
         applyMovement(-xSpeed, -ySpeed, rotation);
         
         if (allControllersAtSetpoint()) {
+=======
+        drivetrain.setControl(
+            driveRequest
+                .withVelocityX(clamp(xSpeed, MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withVelocityY(clamp(ySpeed, MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
+                .withRotationalRate(clamp(rotationSpeed, MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
+        );
+
+        if (xController.atSetpoint() && yController.atSetpoint() && thetaController.atSetpoint()) {
+>>>>>>> b14315cdf538300819d773ba579fc973a41d8ace
             currentState = AlignmentState.APPROACH;
             xController.setSetpoint(TARGET_DISTANCE);
         }
