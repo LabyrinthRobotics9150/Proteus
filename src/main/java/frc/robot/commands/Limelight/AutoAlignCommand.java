@@ -28,11 +28,20 @@ public class AutoAlignCommand extends Command {
     private final CommandSwerveDrivetrain m_drivetrain;
     private final VisionSubsystem m_Limelight;
 
-    private static PIDControllerConfigurable rotationalPidController = new PIDControllerConfigurable(VisionConstants.ROTATE_P, VisionConstants.ROTATE_I, VisionConstants.ROTATE_D, VisionConstants.TOLERANCE);
-    private static final PIDControllerConfigurable xPidController = new PIDControllerConfigurable(VisionConstants.MOVE_P, VisionConstants.MOVE_I, VisionConstants.MOVE_D, VisionConstants.TOLERANCE);
-    private static final PIDControllerConfigurable yPidController = new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
+    // Initialize the PID controllers once.
+    private static PIDControllerConfigurable rotationalPidController = 
+        new PIDControllerConfigurable(VisionConstants.ROTATE_P, VisionConstants.ROTATE_I, VisionConstants.ROTATE_D, VisionConstants.TOLERANCE);
+    private static final PIDControllerConfigurable xPidController = 
+        new PIDControllerConfigurable(VisionConstants.MOVE_P, VisionConstants.MOVE_I, VisionConstants.MOVE_D, VisionConstants.TOLERANCE);
+    private static final PIDControllerConfigurable yPidController = 
+        new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
 
-    private static final SwerveRequest.RobotCentric alignRequest = new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    // Minimum output thresholds (tunable)
+    private static final double MIN_ROTATIONAL_OUTPUT = 0.05; // in radians per second (example value)
+    private static final double MIN_VELOCITY_OUTPUT = 0.1;    // in meters per second (example value)
+
+    private static final SwerveRequest.RobotCentric alignRequest = 
+        new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
     private static int tagID = -1;
     
@@ -55,16 +64,19 @@ public class AutoAlignCommand extends Command {
     }
 
     @Override
-    public void initialize() {}
+    public void initialize() {
+        // Optionally reset controllers here if needed:
+        rotationalPidController.reset();
+        xPidController.reset();
+        yPidController.reset();
+    }
 
     @Override
     public void execute() {
-        rotationalPidController = new PIDControllerConfigurable(
-            SmartDashboard.getNumber("Rotate P", 1), 
-            VisionConstants.ROTATE_I, 
-            SmartDashboard.getNumber("Rotate D", 0.0), 
-            VisionConstants.TOLERANCE
-        );
+        // Dynamically update rotational PID parameters from SmartDashboard without recreating the controller
+        rotationalPidController.setP(SmartDashboard.getNumber("Rotate P", VisionConstants.ROTATE_P));
+        rotationalPidController.setD(SmartDashboard.getNumber("Rotate D", VisionConstants.ROTATE_D));
+        // (You can also update I if needed)
 
         try {
             RawFiducial fiducial;
@@ -74,31 +86,44 @@ public class AutoAlignCommand extends Command {
                 fiducial = m_Limelight.getFiducialWithId(tagID);
             }
 
-            // Calculate rotation control
-            rotationalRate = rotationalPidController.calculate(fiducial.txnc, 0.0) 
+            // Calculate rotation control.
+            double rawRotationalOutput = rotationalPidController.calculate(fiducial.txnc, 0.0);
+            rotationalRate = rawRotationalOutput 
                 * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
                 * -2;
+            // Apply minimum output if not at setpoint and output is too small.
+            if (!rotationalPidController.atSetpoint() && Math.abs(rotationalRate) < MIN_ROTATIONAL_OUTPUT) {
+                rotationalRate = Math.copySign(MIN_ROTATIONAL_OUTPUT, rotationalRate);
+            }
 
-            // Calculate X velocity (forward/backward)
-            velocityX = xPidController.calculate(fiducial.distToRobot, 1.0) 
+            // Calculate X velocity (forward/backward).
+            double rawXOutput = xPidController.calculate(fiducial.distToRobot, 1.0);
+            velocityX = rawXOutput 
                 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
                 * 0.6;
+            if (!xPidController.atSetpoint() && Math.abs(velocityX) < MIN_VELOCITY_OUTPUT) {
+                velocityX = Math.copySign(MIN_VELOCITY_OUTPUT, velocityX);
+            }
 
-            // Calculate Y velocity (strafing)
+            // Calculate Y velocity (strafing).
             double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-            velocityY = yPidController.calculate(yError, 0.0) 
+            double rawYOutput = yPidController.calculate(yError, 0.0);
+            velocityY = rawYOutput 
                 * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
                 * 0.6;
+            if (!yPidController.atSetpoint() && Math.abs(velocityY) < MIN_VELOCITY_OUTPUT) {
+                velocityY = Math.copySign(MIN_VELOCITY_OUTPUT, velocityY);
+            }
 
-            // Apply movement
+            // Apply movement to drivetrain.
             m_drivetrain.setControl(
                 alignRequest
-                    .withRotationalRate(-rotationalRate)
+                    .withRotationalRate(-rotationalRate)  // Verify sign as needed.
                     .withVelocityX(-velocityX)
                     .withVelocityY(velocityY)
             );
 
-            // Update dashboard
+            // Update dashboard values.
             SmartDashboard.putNumber("txnc", fiducial.txnc);
             SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
             SmartDashboard.putNumber("rotationalRate", rotationalRate);
