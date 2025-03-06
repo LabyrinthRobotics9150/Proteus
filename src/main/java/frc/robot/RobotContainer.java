@@ -51,7 +51,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight, AlignmentDirection.LEFT);
   
   // secondary
-    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 4);
+    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.8);
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, 0);
@@ -72,7 +72,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   
       private final Telemetry logger = new Telemetry(MaxSpeed);
       // determines which commands are enabled;
-      boolean TESTING_MODE = false;
+      boolean TESTING_MODE = true;
       // slowmode toggle for command
       public static boolean m_slowMode = false;
 

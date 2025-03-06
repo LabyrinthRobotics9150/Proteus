@@ -31,8 +31,8 @@ public class IntakeScoreCommand extends Command {
         this.normalSpeed = 0.1;
         this.slowSpeed = 0.05;
         this.reverseSpeed = 0.05; 
-        this.reverseRotations = 1.25;
-        this.scoringSpeed = -0.5;
+        this.reverseRotations = 1.1;
+        this.scoringSpeed = 0.5;
         this.detectionThresholdMm = 20;
 
         addRequirements(intakeSubsystem);

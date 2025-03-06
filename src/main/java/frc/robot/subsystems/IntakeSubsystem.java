@@ -19,7 +19,7 @@ public class IntakeSubsystem extends SubsystemBase {
     private final PIDController pidController = new PIDController(0.5, 0, 0);
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
-    public double HOME_POSITION = 0.88;
+    public double HOME_POSITION = 0.84;
     public double BALL_POSITION = 0.38;
 
     // (max velocity and acceleration)
