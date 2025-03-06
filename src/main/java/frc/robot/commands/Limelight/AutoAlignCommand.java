@@ -1,138 +1,85 @@
 package frc.robot.commands.Limelight;
 
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-
-import static edu.wpi.first.units.Units.MetersPerSecond;
-
-import com.ctre.phoenix6.swerve.SwerveRequest;
-import frc.robot.Constants.VisionConstants;
-import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.subsystems.LimelightHelpers.RawFiducial;
+import com.ctre.phoenix6.swerve.SwerveRequest;
 
 public class AutoAlignCommand extends Command {
-    public enum AlignmentDirection { LEFT, CENTER, RIGHT }
+    private final CommandSwerveDrivetrain drivetrain;
+    private final VisionSubsystem vision;
+    private final double kP = 0.02; // tuning constant (adjust as needed)
+    private final double kToleranceDegrees = 0.5; // tolerance in degrees for alignment
 
-    private final CommandSwerveDrivetrain m_drivetrain;
-    private final VisionSubsystem m_limelight;
-    private final int m_tagID;
-    private final AlignmentDirection m_direction;
-    
-    private final PIDController m_rotationController;
-    private final PIDController m_translationController;
-    
-    private static final SwerveRequest.RobotCentric alignRequest = 
-        new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-    private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
+    public enum AlignmentDirection {
+        CENTER, LEFT, RIGHT
+    }
+    private final AlignmentDirection direction;
 
-    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, 
-                           int tagID, AlignmentDirection direction) {
-        m_drivetrain = drivetrain;
-        m_limelight = limelight;
-        m_tagID = tagID;
-        m_direction = direction;
-
-        m_rotationController = createRotationController();
-        m_translationController = createTranslationController();
-
-        addRequirements(m_limelight);
+    // Default constructor aligns to center (i.e. makes the target straight ahead)
+    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem vision) {
+        this(drivetrain, vision, AlignmentDirection.CENTER);
     }
 
-    private PIDController createRotationController() {
-        PIDController controller = new PIDController(0.05, 0.0, 0.001);
-        controller.setTolerance(0.01);
-        return controller;
+    // Allows specifying an alignment bias (if needed)
+    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem vision, AlignmentDirection direction) {
+        this.drivetrain = drivetrain;
+        this.vision = vision;
+        this.direction = direction;
+        addRequirements(drivetrain);
     }
 
-    private PIDController createTranslationController() {
-        PIDController controller = new PIDController(0.4, 0.0, 0.0006);
-        controller.setTolerance(0.01);
-        return controller;
+    @Override
+    public void initialize() {
+        // Optionally, you can reset any PID state here.
     }
 
     @Override
     public void execute() {
-        try {
-            RawFiducial target = getTargetFiducial();
-            double rotationOutput = calculateRotation(target);
-            double translationOutput = calculateTranslation(target);
-            
-            driveRobot(rotationOutput, translationOutput);
-            updateTelemetry(target, rotationOutput, translationOutput);
-            
-        } catch (VisionSubsystem.NoSuchTargetException e) {
-            handleTargetLoss();
+        if (vision.hasTarget()) {
+            // Get horizontal offset in degrees from limelight
+            double tx = vision.getTx();
+            // Optionally add a bias if aligning left/right (for example purposes, here we simply subtract or add a fixed offset)
+            if (direction == AlignmentDirection.LEFT) {
+                tx -= 2.0;  // adjust this offset as needed
+            } else if (direction == AlignmentDirection.RIGHT) {
+                tx += 2.0;  // adjust this offset as needed
+            }
+
+            // Calculate the rotational correction (convert tx from degrees to radians for the rotational rate)
+            double rotationalCorrection = kP * Math.toRadians(tx);
+            // Optionally, if error is very small, command zero rotation
+            if (Math.abs(tx) < kToleranceDegrees) {
+                rotationalCorrection = 0;
+            }
+
+            // Build a FieldCentric request that commands zero translation and the calculated rotational rate
+            SwerveRequest.FieldCentric request = new SwerveRequest.FieldCentric()
+                    .withVelocityX(0)
+                    .withVelocityY(0)
+                    .withRotationalRate(rotationalCorrection);
+            drivetrain.setControl(request);
+        } else {
+            // No valid target; stop rotation (or you might choose to maintain the last command)
+            drivetrain.setControl(new SwerveRequest.FieldCentric()
+                    .withVelocityX(0)
+                    .withVelocityY(0)
+                    .withRotationalRate(0));
         }
-    }
-
-    private RawFiducial getTargetFiducial() {
-        return (m_tagID == -1) ? 
-            m_limelight.getClosestFiducial() : 
-            m_limelight.getFiducialWithId(m_tagID);
-    }
-
-    private double calculateRotation(RawFiducial fiducial) {
-        double setpoint = getRotationSetpoint();
-        return m_rotationController.calculate(fiducial.txnc, setpoint);
-    }
-
-    private double getRotationSetpoint() {
-        switch(m_direction) {
-            case LEFT: return VisionConstants.LEFT_ALIGN_TX_SETPOINT;
-            case RIGHT: return VisionConstants.RIGHT_ALIGN_TX_SETPOINT;
-            default: return 0.0;
-        }
-    }
-
-    private double calculateTranslation(RawFiducial fiducial) {
-        return m_translationController.calculate(fiducial.distToRobot, VisionConstants.TARGET_DISTANCE_METERS);
-    }
-
-    private void driveRobot(double rotation, double translation) {
-        double scaledRotation = rotation * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.75;
-        double scaledTranslation = translation * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
-        
-        m_drivetrain.setControl(
-            alignRequest
-                .withRotationalRate(-scaledRotation)
-                .withVelocityX(-scaledTranslation)
-        );
-    }
-
-    private void updateTelemetry(RawFiducial target, double rotation, double translation) {
-        SmartDashboard.putNumber("Align/Rotation Output", rotation);
-        SmartDashboard.putNumber("Align/Translation Output", translation);
-        SmartDashboard.putNumber("Align/TXnc", target.txnc);
-        SmartDashboard.putNumber("Align/Distance", target.distToRobot);
-    }
-
-    private void handleTargetLoss() {
-        System.out.println("Target lost! Stopping...");
-        m_drivetrain.setControl(idleRequest);
-    }
-
-    @Override
-    public boolean isFinished() {
-        return m_rotationController.atSetpoint() && m_translationController.atSetpoint();
     }
 
     @Override
     public void end(boolean interrupted) {
-        m_drivetrain.setControl(idleRequest);
+        // Stop any commanded motion when the command ends
+        drivetrain.setControl(new SwerveRequest.FieldCentric()
+                .withVelocityX(0)
+                .withVelocityY(0)
+                .withRotationalRate(0));
     }
 
-    // Simplified constructors
-    public AutoAlignCommand(CommandSwerveDrivetrain d, VisionSubsystem v) {
-        this(d, v, -1, AlignmentDirection.CENTER);
-    }
-    public AutoAlignCommand(CommandSwerveDrivetrain d, VisionSubsystem v, int id) {
-        this(d, v, id, AlignmentDirection.CENTER);
-    }
-    public AutoAlignCommand(CommandSwerveDrivetrain d, VisionSubsystem v, AlignmentDirection dir) {
-        this(d, v, -1, dir);
+    @Override
+    public boolean isFinished() {
+        // Command ends when the tag is aligned within the tolerance (and a target is present)
+        return vision.hasTarget() && Math.abs(vision.getTx()) < kToleranceDegrees;
     }
 }
