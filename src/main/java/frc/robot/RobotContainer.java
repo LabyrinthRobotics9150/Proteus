@@ -9,24 +9,20 @@ import static edu.wpi.first.units.Units.*;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 
+import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.Elevator.HoldAndReturnCommand;
-import frc.robot.commands.Elevator.MoveElevatorCommand;
-import frc.robot.commands.Elevator.MoveElevatorManualCommand;
 import frc.robot.commands.Intake.BallCommand;
 import frc.robot.commands.Intake.IntakeScoreCommand;
-import frc.robot.commands.Intake.MovePivotManualCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
 import frc.robot.commands.Limelight.AutoAlignCommand;
-import frc.robot.commands.Limelight.FollowClosestAprilTagCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
-import frc.robot.subsystems.LimelightSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
 
 public class RobotContainer {
@@ -36,6 +32,7 @@ public class RobotContainer {
   private final IntakeSubsystem m_intake = new IntakeSubsystem(0);
   private final VisionSubsystem limelight = new VisionSubsystem();
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
+  SendableChooser autonomouChooser = new SendableChooser<>();
 
   private final CommandXboxController m_primaryController =
   new CommandXboxController(OperatorConstants.kDriverControllerPort);
@@ -50,7 +47,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight);
   
   // secondary
-    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.95);
+    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90  );
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, 0);
@@ -260,4 +257,5 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     public Command getAutonomousCommand() {
         return Commands.print("No autonomous command configured");
     }
+
 }
