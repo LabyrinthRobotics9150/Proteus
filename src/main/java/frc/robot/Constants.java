@@ -48,5 +48,10 @@ public final class Constants {
     public static final Double ROTATE_D = .001;
     public static final Double TOLERANCE = .01;
 
+    public static final Double MOVE_P = .4;
+    public static final Double MOVE_I = .00;
+    public static final Double MOVE_D = .0006;
+
+
   }
 }
