@@ -171,7 +171,7 @@ public class AutoAlignCommand extends Command {
                 }
                 case DRIVE_X: {
                     // Stage 4: Drive forward (X).
-                    double rawXOutput = xPidController.calculate(fiducial.distToRobot, 1.0);
+                    double rawXOutput = xPidController.calculate(fiducial.distToRobot, .6);
                     outputX = rawXOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
                     if (Math.abs(outputX) < MIN_VELOCITY_OUTPUT) {
                         outputX = Math.copySign(MIN_VELOCITY_OUTPUT, outputX);
