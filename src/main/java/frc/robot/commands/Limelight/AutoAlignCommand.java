@@ -61,7 +61,6 @@ public class AutoAlignCommand extends Command {
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, int ID, AlignmentDirection direction) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
-        // Removed the validation check here
         this.tagID = ID;
         this.alignmentDirection = direction;
         
@@ -116,6 +115,7 @@ public class AutoAlignCommand extends Command {
             SmartDashboard.putNumber("xPidController", velocityX);
 
             // Drive robot
+            System.out.println("driving!");
             m_drivetrain.setControl(
                 alignRequest
                     .withRotationalRate(-rotationalRate)

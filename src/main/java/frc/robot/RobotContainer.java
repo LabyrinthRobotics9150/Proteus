@@ -51,7 +51,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight, AlignmentDirection.LEFT);
   
   // secondary
-    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.8);
+    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.95);
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, 0);
