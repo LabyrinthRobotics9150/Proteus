@@ -81,8 +81,7 @@ public class AutoAlignCommand extends Command {
             if (!rotationAligned) {
                 // Phase 1: Align rotation first
                 rotationalRate = rotationalPidController.calculate(fiducial.txnc, 0.0) 
-                    * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
-                    * -0.1;
+                    * RotationsPerSecond.of(0.75).in(RadiansPerSecond);
 
                 velocityX = 0;
                 velocityY = 0;
