@@ -39,6 +39,8 @@ public class AutoAlignCommand extends Command {
     // Increased minimum output thresholds (tunable)
     private static final double MIN_ROTATIONAL_OUTPUT = 0.1; // Minimum power for rotation (radians per second)
     private static final double MIN_VELOCITY_OUTPUT = 0.2;    // Minimum power for translation (meters per second)
+    // New threshold for how close the rotation error must be (in degrees) before considering it aligned.
+    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 2.0; 
 
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
@@ -122,18 +124,19 @@ public class AutoAlignCommand extends Command {
                 }
                 case ALIGN_ROTATION: {
                     // Step 2: Adjust rotation while holding X and Y.
-                    double rawRotOutput = rotationalPidController.calculate(fiducial.txnc, 0.0);
-                    outputRotation = rawRotOutput * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -2;
-                    if (!rotationalPidController.atSetpoint() && Math.abs(outputRotation) < MIN_ROTATIONAL_OUTPUT) {
-                        outputRotation = Math.copySign(MIN_ROTATIONAL_OUTPUT, outputRotation);
+                    double rotationError = fiducial.txnc; // error in degrees
+                    if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
+                        outputRotation = 0.0;
+                        currentStage = AlignStage.CORRECT_Y;
+                    } else {
+                        double rawRotOutput = rotationalPidController.calculate(rotationError, 0.0);
+                        outputRotation = rawRotOutput * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -2;
+                        if (!rotationalPidController.atSetpoint() && Math.abs(outputRotation) < MIN_ROTATIONAL_OUTPUT) {
+                            outputRotation = Math.copySign(MIN_ROTATIONAL_OUTPUT, outputRotation);
+                        }
                     }
                     outputX = 0.0;
                     outputY = 0.0;
-                    
-                    // When rotation is aligned, move to Y correction.
-                    if (rotationalPidController.atSetpoint()) {
-                        currentStage = AlignStage.CORRECT_Y;
-                    }
                     break;
                 }
                 case CORRECT_Y: {
