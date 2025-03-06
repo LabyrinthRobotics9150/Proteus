@@ -25,10 +25,8 @@ public class LimelightSubsystem extends SubsystemBase {
     }
 
     public double[] getTargetPose() {
-        // Remove the hasTarget() check here - rely on botpose validity
         double[] botpose = limelight.getEntry("botpose").getDoubleArray(new double[0]);
         
-        // Require full 6-element pose data
         if (botpose.length < 6) return null;
         
         return new double[] {

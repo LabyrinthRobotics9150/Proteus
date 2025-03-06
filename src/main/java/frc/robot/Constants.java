@@ -29,4 +29,9 @@ public final class Constants {
         public static final int kElevatorFollowerCanId = 5;
         public static final int kElevatorLeaderCanId = 4;
   }
+  public static class VisionConstants {
+    public static final String LIMELIGHT_NAME = "";
+    public static final Double LEFT_ALIGN_TX_SETPOINT = .3;
+    public static final Double RIGHT_ALIGN_TX_SETPOINT = .3;
+  }
 }

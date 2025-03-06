@@ -1,172 +1,108 @@
 package frc.robot.commands.Limelight;
 
-import edu.wpi.first.math.controller.PIDController;
-import edu.wpi.first.math.util.Units;
+import static edu.wpi.first.units.Units.*;
+import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.PrintCommand;
+import frc.robot.Constants.VisionConstants;
+import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.subsystems.LimelightSubsystem;
-import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-import com.ctre.phoenix6.swerve.SwerveRequest;
-
+import frc.robot.subsystems.VisionSubsystem;
+import frc.robot.subsystems.LimelightHelpers.RawFiducial;
+import edu.wpi.first.math.controller.PIDController;
+class PIDControllerConfigurable extends PIDController {
+  public PIDControllerConfigurable(double kP, double kI, double kD) {
+      super(kP, kI, kD);
+  }
+  
+  public PIDControllerConfigurable(double kP, double kI, double kD, double tolerance) {
+      super(kP, kI, kD);
+      this.setTolerance(tolerance);
+  }
+}
 public class AutoAlignCommand extends Command {
-    private enum AlignmentState { ROTATE, APPROACH, LATERAL }
-    
-    private final LimelightSubsystem limelight;
-    private final CommandSwerveDrivetrain drivetrain;
-    private final boolean targetRight;
-    private AlignmentState currentState = AlignmentState.ROTATE;
+  private final CommandSwerveDrivetrain m_drivetrain;
+  private final VisionSubsystem m_Limelight;
 
-    // PID Controllers
-    private final PIDController xController = new PIDController(0.4, 0, 0.0006);
-    private final PIDController yController = new PIDController(0.3, 0, 0);
-    private final PIDController thetaController = new PIDController(0.05, 0, 0.001);
+  private static final PIDControllerConfigurable rotationalPidController = new PIDControllerConfigurable(0.05000, 0.000000, 0.001000, 0.01);
+  private static final PIDControllerConfigurable xPidController = new PIDControllerConfigurable(0.400000, 0.000000, 0.000600, 0.01);
 
-    // Configuration
-    private static final double TARGET_DISTANCE = 0.5; // meters
-    private static final double LATERAL_OFFSET = 0.3; // meters
-    private static final double MAX_LINEAR_SPEED = 4.0; // m/s
-    private static final double MAX_ANGULAR_SPEED = Math.PI; // rad/s
-    private static final double POSE_TOLERANCE = 0.01;
-    private static final double ANGLE_TOLERANCE = Units.degreesToRadians(0.5);
+  
 
-    private final SwerveRequest.RobotCentric driveRequest = 
-        new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
-    private final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
+  private static final SwerveRequest.RobotCentric alignRequest = new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+  private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
+  private static int tagID = -1;
+  
+  public double rotationalRate = 0;
+  public double velocityX = 0;
 
-    public AutoAlignCommand(LimelightSubsystem limelight, 
-                          CommandSwerveDrivetrain drivetrain,
-                          boolean targetRight) {
-        this.limelight = limelight;
-        this.drivetrain = drivetrain;
-        this.targetRight = targetRight;
+  //use whatever fiducial is closest
+  public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
+    this.m_drivetrain = drivetrain;
+    this.m_Limelight = limelight;
+    addRequirements(m_Limelight);
+  }
 
-        configureControllers();
-        addRequirements(drivetrain);
-    }
+  //Overload for specific april tag by id
 
-    private void configureControllers() {
-        thetaController.enableContinuousInput(-Math.PI, Math.PI);
-        xController.setTolerance(POSE_TOLERANCE);
-        yController.setTolerance(POSE_TOLERANCE);
-        thetaController.setTolerance(ANGLE_TOLERANCE);
-    }
+  public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, int ID) throws IllegalArgumentException{
+    this.m_drivetrain = drivetrain;
+    this.m_Limelight = limelight;
+    if (ID<0){throw new IllegalArgumentException("april tag id cannot be negative");}
+    tagID = ID;
+    addRequirements(m_Limelight);
+  }
 
-    @Override
-    public void initialize() {
-        limelight.setPipeline(0);
-        limelight.setLedMode(3);
-        currentState = AlignmentState.ROTATE;
-        resetControllers();
-    }
+  @Override
+  public void initialize() {}
 
-    private void resetControllers() {
-        xController.reset();
-        yController.reset();
-        thetaController.reset();
-    }
+  @Override
+  public void execute() {    
+    RawFiducial fiducial; //Tracked fiducual 
 
-    @Override
-    public void execute() {
-        if (!limelight.hasTarget()) {
-            drivetrain.setControl(idleRequest);
-            return;
-        }
+    try {
+      if (tagID==-1){
+        fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
+      }
+      else{
+        fiducial = m_Limelight.getFiducialWithId(tagID);
+      }
+       
 
-        var targetPose = limelight.getTargetPose();
-        if (targetPose == null) return;
-
-        double currentX = targetPose[0];
-        double currentY = targetPose[1];
-        double currentYaw = Math.toRadians(targetPose[2]);
-
-        switch (currentState) {
-            case ROTATE -> handleRotation(currentX, currentY, currentYaw);
-            case APPROACH -> handleApproach(currentX, currentY, currentYaw);
-            case LATERAL -> handleLateral(currentX, currentY, currentYaw);
-        }
-
-        updateTelemetry();
-    }
-
-    private void handleRotation(double x, double y, double yaw) {
-        xController.setSetpoint(0);
-        yController.setSetpoint(0);
-        thetaController.setSetpoint(0);
-
-        double xSpeed = xController.calculate(x);
-        double ySpeed = yController.calculate(y);
-        double rotation = thetaController.calculate(yaw);
-
-        applyMovement(-xSpeed, -ySpeed, rotation);
+      rotationalRate = rotationalPidController.calculate(2*fiducial.txnc, 0.0) * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -0.1; // Max speed is 90 percnet of max rotate
+      
+      final double velocityX = xPidController.calculate(fiducial.distToRobot, 0.3) * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6; //Max speed is 70 percnet of max drive
         
-        if (allControllersAtSetpoint()) {
-            currentState = AlignmentState.APPROACH;
-            xController.setSetpoint(TARGET_DISTANCE);
-        }
+      if (rotationalPidController.atSetpoint() && xPidController.atSetpoint()) { //At target dist
+        this.end(false);
+      }
+
+      SmartDashboard.putNumber("txnc", fiducial.txnc);
+      SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
+      SmartDashboard.putNumber("rotationalPidController", rotationalRate);
+      SmartDashboard.putNumber("xPidController", velocityX);
+
+      m_drivetrain.setControl(
+          alignRequest.withRotationalRate(-rotationalRate).withVelocityX(-velocityX));
+
+    } catch (VisionSubsystem.NoSuchTargetException nste) { 
+      System.out.println("No apriltag found");
+        m_drivetrain.setControl(
+          alignRequest.withRotationalRate(-1.5*rotationalRate).withVelocityX(-1.5*velocityX)); //Continue moving after losing sight temporarily 
+      }
+      
     }
+  
 
-    private void handleApproach(double x, double y, double yaw) {
-        yController.setSetpoint(0);
-        thetaController.setSetpoint(0);
+  @Override
+  public boolean isFinished() {
+    return rotationalPidController.atSetpoint() && xPidController.atSetpoint();
+  }
 
-        double xSpeed = xController.calculate(x);
-        double ySpeed = yController.calculate(y);
-        double rotation = thetaController.calculate(yaw);
-
-        applyMovement(-xSpeed, -ySpeed, rotation);
-
-        if (allControllersAtSetpoint()) {
-            currentState = AlignmentState.LATERAL;
-            yController.setSetpoint(targetRight ? -LATERAL_OFFSET : LATERAL_OFFSET);
-        }
-    }
-
-    private void handleLateral(double x, double y, double yaw) {
-        xController.setSetpoint(TARGET_DISTANCE);
-        thetaController.setSetpoint(0);
-
-        double xSpeed = xController.calculate(x);
-        double ySpeed = yController.calculate(y);
-        double rotation = thetaController.calculate(yaw);
-
-        applyMovement(-xSpeed, -ySpeed, rotation);
-    }
-
-    private void applyMovement(double xSpeed, double ySpeed, double rotation) {
-        drivetrain.setControl(
-            driveRequest
-                .withVelocityX(clamp(xSpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withVelocityY(clamp(ySpeed, -MAX_LINEAR_SPEED, MAX_LINEAR_SPEED))
-                .withRotationalRate(clamp(rotation, -MAX_ANGULAR_SPEED, MAX_ANGULAR_SPEED))
-        );
-    }
-
-    private void updateTelemetry() {
-        SmartDashboard.putNumber("Alignment/X Error", xController.getPositionError());
-        SmartDashboard.putNumber("Alignment/Y Error", yController.getPositionError());
-        SmartDashboard.putNumber("Alignment/Theta Error", thetaController.getPositionError());
-        SmartDashboard.putString("Alignment/State", currentState.name());
-    }
-
-    private boolean allControllersAtSetpoint() {
-        return xController.atSetpoint() && 
-               yController.atSetpoint() && 
-               thetaController.atSetpoint();
-    }
-
-    @Override
-    public boolean isFinished() {
-        return currentState == AlignmentState.LATERAL && allControllersAtSetpoint();
-    }
-
-    @Override
-    public void end(boolean interrupted) {
-        drivetrain.setControl(idleRequest);
-        limelight.setLedMode(1);
-    }
-
-    private double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
-    }
+  @Override
+  public void end(boolean interrupted) {
+    m_drivetrain.applyRequest(() -> idleRequest);
+  }
 }

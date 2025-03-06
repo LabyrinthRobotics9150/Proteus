@@ -22,18 +22,20 @@ import frc.robot.commands.Intake.MovePivotManualCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
 import frc.robot.commands.Limelight.AutoAlignCommand;
 import frc.robot.commands.Limelight.FollowClosestAprilTagCommand;
+import frc.robot.commands.Limelight.AutoAlignCommand.AlignmentDirection;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.LimelightSubsystem;
+import frc.robot.subsystems.VisionSubsystem;
 
 public class RobotContainer {
 
     // The robot's subsystems and commands are defined here...
   private final ElevatorSubsystem m_elevator = new ElevatorSubsystem();
   private final IntakeSubsystem m_intake = new IntakeSubsystem(0);
-  private final LimelightSubsystem limelight = new LimelightSubsystem();
+  private final VisionSubsystem limelight = new VisionSubsystem();
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
   private final CommandXboxController m_primaryController =
@@ -45,13 +47,9 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
   // primary
   IntakeScoreCommand intakeScoreCommand = new IntakeScoreCommand(m_elevator, m_intake);
-  AutoAlignCommand alignRightCommand = new AutoAlignCommand( limelight, drivetrain,  true);
-  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(limelight, drivetrain, false);
+  AutoAlignCommand alignRightCommand = new AutoAlignCommand( drivetrain, limelight);
+  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight, AlignmentDirection.LEFT);
   
-
-  // temporary
-  FollowClosestAprilTagCommand closestAprilTagCommand = new FollowClosestAprilTagCommand(limelight, drivetrain);
-
   // secondary
     HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 4);
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
@@ -74,7 +72,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   
       private final Telemetry logger = new Telemetry(MaxSpeed);
       // determines which commands are enabled;
-      boolean TESTING_MODE = true;
+      boolean TESTING_MODE = false;
       // slowmode toggle for command
       public static boolean m_slowMode = false;
 
@@ -181,9 +179,6 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     m_secondaryController.rightTrigger()
     .whileTrue(wheelMoveReverseCommand);
 
-    m_primaryController.y()
-    .whileTrue(closestAprilTagCommand);
-
     //m_primaryController.b()
     //.whileTrue(alignRightCommand);
 
@@ -214,8 +209,8 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     /* PRIMARY */
 
     // Right Trigger - intake / outtake dependant on where the pivot arm is
-    //m_primaryController.rightTrigger()
-    //.onTrue(intakeScoreCommand);
+    m_primaryController.rightTrigger()
+    .onTrue(intakeScoreCommand);
 
     // Rb - Auto-align to right coral spoke
     m_primaryController.rightBumper()
