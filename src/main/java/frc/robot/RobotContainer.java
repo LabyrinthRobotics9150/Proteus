@@ -19,7 +19,6 @@ import frc.robot.commands.Intake.BallCommand;
 import frc.robot.commands.Intake.IntakeScoreCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
 import frc.robot.commands.Limelight.AutoAlignCommand;
-import frc.robot.commands.autos.AprilTagAutoCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
@@ -258,9 +257,5 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     public Command getAutonomousCommand() {
         return Commands.print("No autonomous command configured");
     }
-    private void configureAutonomous() {
-      autonomouChooser.setDefaultOption("AprilTag Auto", 
-          new AprilTagAutoCommand(drivetrain, m_elevator, limelight));
-  }
 
 }
