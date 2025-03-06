@@ -40,6 +40,8 @@ public class AutoAlignCommand extends Command {
     public double velocityX = 0;
     public double velocityY = 0;
 
+    private boolean rotationAligned = false; // Tracks if rotation is aligned
+    
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
@@ -55,7 +57,9 @@ public class AutoAlignCommand extends Command {
     }
 
     @Override
-    public void initialize() {}
+    public void initialize() {
+        rotationAligned = false; // Reset rotation state on command start
+    }
 
     @Override
     public void execute() {
@@ -74,26 +78,40 @@ public class AutoAlignCommand extends Command {
                 fiducial = m_Limelight.getFiducialWithId(tagID);
             }
 
-            // Calculate rotation control
-            rotationalRate = rotationalPidController.calculate(fiducial.txnc, 0.0) 
-                * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
-                * -0.1;
+            if (!rotationAligned) {
+                // Phase 1: Align rotation first
+                rotationalRate = rotationalPidController.calculate(fiducial.txnc, 0.0) 
+                    * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
+                    * -0.1;
 
-            // Calculate X velocity (forward/backward)
-            velocityX = xPidController.calculate(fiducial.distToRobot, 1.0) 
-                * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
-                * 0.6;
+                velocityX = 0;
+                velocityY = 0;
 
-            // Calculate Y velocity (strafing)
-            double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-            velocityY = yPidController.calculate(yError, 0.0) 
-                * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
-                * 0.6;
+                // Check if rotation is aligned
+                if (rotationalPidController.atSetpoint()) {
+                    rotationAligned = true;
+                }
+            } else {
+                // Phase 2: Adjust X and Y while maintaining rotation
+                velocityX = xPidController.calculate(fiducial.distToRobot, 1.0) 
+                    * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
+                    * 0.6;
 
-            // Apply movement
+                double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                velocityY = yPidController.calculate(yError, 0.0) 
+                    * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
+                    * 0.6;
+
+                // Continue adjusting rotation
+                rotationalRate = rotationalPidController.calculate(fiducial.txnc, 0.0) 
+                    * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
+                    * -0.1;
+            }
+
+            // Apply movement with corrected rotational direction
             m_drivetrain.setControl(
                 alignRequest
-                    .withRotationalRate(-rotationalRate)
+                    .withRotationalRate(rotationalRate) // Removed negative to fix direction
                     .withVelocityX(-velocityX)
                     .withVelocityY(velocityY)
             );
@@ -113,7 +131,9 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public boolean isFinished() {
-        return rotationalPidController.atSetpoint() 
+        // Check all controllers only after rotation is aligned
+        return rotationAligned 
+            && rotationalPidController.atSetpoint() 
             && xPidController.atSetpoint() 
             && yPidController.atSetpoint();
     }
