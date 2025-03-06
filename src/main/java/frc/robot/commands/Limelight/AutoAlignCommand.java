@@ -64,7 +64,7 @@ public class AutoAlignCommand extends Command {
   @Override
   public void execute() {
 
-    rotationalPidController = new PIDControllerConfigurable(SmartDashboard.getNumber("Rotate P", 0.0), VisionConstants.ROTATE_I, SmartDashboard.getNumber("Rotate D", 0.0), VisionConstants.TOLERANCE);
+    rotationalPidController = new PIDControllerConfigurable(SmartDashboard.getNumber("Rotate P", 1), VisionConstants.ROTATE_I, SmartDashboard.getNumber("Rotate D", 0.0), VisionConstants.TOLERANCE);
     
     RawFiducial fiducial; //Tracked fiducual 
 
@@ -79,7 +79,7 @@ public class AutoAlignCommand extends Command {
 
       rotationalRate = rotationalPidController.calculate(2*fiducial.txnc, 0.0) * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -0.1; // Max speed is 90 percnet of max rotate
       
-      final double velocityX = xPidController.calculate(fiducial.distToRobot, 0.3) * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6; //Max speed is 70 percnet of max drive
+      final double velocityX = xPidController.calculate(fiducial.distToRobot, 1) * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6; //Max speed is 70 percnet of max drive
         
       if (rotationalPidController.atSetpoint() && xPidController.atSetpoint()) { //At target dist
         this.end(false);
