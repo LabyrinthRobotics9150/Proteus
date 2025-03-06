@@ -56,7 +56,7 @@ public class AutoAlignCommand extends Command {
         if (!vision.hasTarget()) {
             // If no target is seen, reset state and stop movement.
             currentState = State.ALIGN;
-            drivetrain.setControl(new SwerveRequest.FieldCentric()
+            drivetrain.setControl(new SwerveRequest.RobotCentric()
                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
                 .withVelocityX(0)
                 .withVelocityY(0)
@@ -84,7 +84,7 @@ public class AutoAlignCommand extends Command {
                 currentState = State.APPROACH;  // target is centered—ready to approach
             }
 
-            SwerveRequest.FieldCentric request = new SwerveRequest.FieldCentric()
+            SwerveRequest.RobotCentric request = new SwerveRequest.RobotCentric()
                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
                 .withVelocityX(forward)
                 .withVelocityY(lateral)
@@ -93,7 +93,7 @@ public class AutoAlignCommand extends Command {
         }
         // In the APPROACH state we drive forward and apply gentler corrections.
         else if (currentState == State.APPROACH) {
-            double lateral = kY_approach * tx;                
+            double lateral = kY_approach * tx;
             double rotation = kR_approach * Math.toRadians(tx);
             double forward = forwardSpeed;
 
@@ -102,7 +102,7 @@ public class AutoAlignCommand extends Command {
                 currentState = State.ALIGN;
             }
 
-            SwerveRequest.FieldCentric request = new SwerveRequest.FieldCentric()
+            SwerveRequest.RobotCentric request = new SwerveRequest.RobotCentric()
                 .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
                 .withVelocityX(forward)
                 .withVelocityY(lateral)
@@ -114,7 +114,7 @@ public class AutoAlignCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         // Stop motion when the command ends.
-        drivetrain.setControl(new SwerveRequest.FieldCentric()
+        drivetrain.setControl(new SwerveRequest.RobotCentric()
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
             .withVelocityX(0)
             .withVelocityY(0)
@@ -123,7 +123,7 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public boolean isFinished() {
-        // This command continues until externally cancelled (or add a condition based on distance).
+        // This command continues until externally cancelled (or add a condition based on distance
         return false;
     }
 }
