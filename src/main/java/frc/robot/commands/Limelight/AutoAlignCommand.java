@@ -37,8 +37,8 @@ public class AutoAlignCommand extends Command {
         new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
 
     // Minimum output thresholds (tunable)
-    private static final double MIN_ROTATIONAL_OUTPUT = 0.05; // in radians per second (example value)
-    private static final double MIN_VELOCITY_OUTPUT = 0.1;    // in meters per second (example value)
+    private static final double MIN_ROTATIONAL_OUTPUT = 0.05; // Example value in radians per second
+    private static final double MIN_VELOCITY_OUTPUT = 0.1;    // Example value in meters per second
 
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
@@ -65,7 +65,7 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void initialize() {
-        // Optionally reset controllers here if needed:
+        // Optionally reset controllers here if needed.
         rotationalPidController.reset();
         xPidController.reset();
         yPidController.reset();
@@ -73,10 +73,10 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void execute() {
-        // Dynamically update rotational PID parameters from SmartDashboard without recreating the controller
+        // Update rotational PID parameters from SmartDashboard without recreating the controller.
         rotationalPidController.setP(SmartDashboard.getNumber("Rotate P", VisionConstants.ROTATE_P));
         rotationalPidController.setD(SmartDashboard.getNumber("Rotate D", VisionConstants.ROTATE_D));
-        // (You can also update I if needed)
+        // (Update I if needed)
 
         try {
             RawFiducial fiducial;
@@ -84,16 +84,6 @@ public class AutoAlignCommand extends Command {
                 fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
             } else {
                 fiducial = m_Limelight.getFiducialWithId(tagID);
-            }
-
-            // Calculate rotation control.
-            double rawRotationalOutput = rotationalPidController.calculate(fiducial.txnc, 0.0);
-            rotationalRate = rawRotationalOutput 
-                * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
-                * -2;
-            // Apply minimum output if not at setpoint and output is too small.
-            if (!rotationalPidController.atSetpoint() && Math.abs(rotationalRate) < MIN_ROTATIONAL_OUTPUT) {
-                rotationalRate = Math.copySign(MIN_ROTATIONAL_OUTPUT, rotationalRate);
             }
 
             // Calculate X velocity (forward/backward).
@@ -115,7 +105,20 @@ public class AutoAlignCommand extends Command {
                 velocityY = Math.copySign(MIN_VELOCITY_OUTPUT, velocityY);
             }
 
-            // Apply movement to drivetrain.
+            // Only compute rotational movement if both x and y have reached their setpoints.
+            if (xPidController.atSetpoint() && yPidController.atSetpoint()) {
+                double rawRotationalOutput = rotationalPidController.calculate(fiducial.txnc, 0.0);
+                rotationalRate = rawRotationalOutput 
+                    * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
+                    * -2;
+                if (!rotationalPidController.atSetpoint() && Math.abs(rotationalRate) < MIN_ROTATIONAL_OUTPUT) {
+                    rotationalRate = Math.copySign(MIN_ROTATIONAL_OUTPUT, rotationalRate);
+                }
+            } else {
+                rotationalRate = 0.0;
+            }
+
+            // Apply movement to the drivetrain.
             m_drivetrain.setControl(
                 alignRequest
                     .withRotationalRate(-rotationalRate)  // Verify sign as needed.
