@@ -1,129 +1,114 @@
 package frc.robot.commands.Limelight;
 
-import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.subsystems.VisionSubsystem;
+import static edu.wpi.first.units.Units.*;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
-
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.PrintCommand;
+import frc.robot.Constants.VisionConstants;
+import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.VisionSubsystem;
+import frc.robot.subsystems.LimelightHelpers.RawFiducial;
+import edu.wpi.first.math.controller.PIDController;
+class PIDControllerConfigurable extends PIDController {
+  public PIDControllerConfigurable(double kP, double kI, double kD) {
+      super(kP, kI, kD);
+  }
+  
+  public PIDControllerConfigurable(double kP, double kI, double kD, double tolerance) {
+      super(kP, kI, kD);
+      this.setTolerance(tolerance);
+  }
+}
 public class AutoAlignCommand extends Command {
-    private final CommandSwerveDrivetrain drivetrain;
-    private final VisionSubsystem vision;
+  private final CommandSwerveDrivetrain m_drivetrain;
+  private final VisionSubsystem m_Limelight;
 
-    // Gains and thresholds for the ALIGN phase
-    private final double kY_align = 0.05;           // lateral correction (m/s per degree)
-    private final double kR_align = 5.0;            // rotational correction (rad/s per radian error)
-    private final double toleranceAlign = 1.0;      // error (in degrees) below which we consider the target centered
+  //private static final PIDControllerConfigurable rotationalPidController = new PIDControllerConfigurable(0.05000, 0.000000, 0.001000, 0.01);
+  private static PIDControllerConfigurable rotationalPidController = new PIDControllerConfigurable(VisionConstants.ROTATE_P, VisionConstants.ROTATE_I, VisionConstants.ROTATE_D, VisionConstants.TOLERANCE);
+  //private static final PIDControllerConfigurable xPidController = new PIDControllerConfigurable(0.400000, 0.000000, 0.000600, 0.01);
+  private static final PIDControllerConfigurable xPidController = new PIDControllerConfigurable(VisionConstants.MOVE_P, VisionConstants.MOVE_I, VisionConstants.MOVE_D, VisionConstants.TOLERANCE);
 
-    // Gains for the APPROACH phase (milder corrections while driving forward)
-    private final double kY_approach = 0.02;        // lateral correction gain during approach
-    private final double kR_approach = 2.0;         // rotational correction gain during approach
-    private final double toleranceApproachExit = 1.5; // if error exceeds this, revert to ALIGN phase
+  
 
-    private final double forwardSpeed = 0.2;        // constant forward speed (m/s) during approach
+  private static final SwerveRequest.RobotCentric alignRequest = new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+  private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
+  private static int tagID = -1;
+  
+  public double rotationalRate = 0;
+  public double velocityX = 0;
 
-    private enum State {
-        ALIGN,
-        APPROACH
+  //use whatever fiducial is closest
+  public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
+    this.m_drivetrain = drivetrain;
+    this.m_Limelight = limelight;
+    addRequirements(m_Limelight);
+  }
+
+  //Overload for specific april tag by id
+
+  public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, int ID) throws IllegalArgumentException{
+    this.m_drivetrain = drivetrain;
+    this.m_Limelight = limelight;
+    if (ID<0){throw new IllegalArgumentException("april tag id cannot be negative");}
+    tagID = ID;
+    addRequirements(m_Limelight);
+  }
+
+  //maybe set tagid by closest here instead of each execution to keep same tag
+  @Override
+  public void initialize() {}
+
+  @Override
+  public void execute() {
+
+    rotationalPidController = new PIDControllerConfigurable(SmartDashboard.getNumber("Rotate P", 0.0), VisionConstants.ROTATE_I, SmartDashboard.getNumber("Rotate D", 0.0), VisionConstants.TOLERANCE);
+    
+    RawFiducial fiducial; //Tracked fiducual 
+
+    try {
+      if (tagID==-1){
+        fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
+      }
+      else{
+        fiducial = m_Limelight.getFiducialWithId(tagID);
+      }
+       
+
+      rotationalRate = rotationalPidController.calculate(2*fiducial.txnc, 0.0) * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -0.1; // Max speed is 90 percnet of max rotate
+      
+      final double velocityX = xPidController.calculate(fiducial.distToRobot, 0.3) * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6; //Max speed is 70 percnet of max drive
+        
+      if (rotationalPidController.atSetpoint() && xPidController.atSetpoint()) { //At target dist
+        this.end(false);
+      }
+
+      SmartDashboard.putNumber("txnc", fiducial.txnc);
+      SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
+      SmartDashboard.putNumber("rotationalPidController", rotationalRate);
+      SmartDashboard.putNumber("xPidController", velocityX);
+
+      m_drivetrain.setControl(
+          alignRequest.withRotationalRate(-rotationalRate).withVelocityX(-velocityX));
+
+    } catch (VisionSubsystem.NoSuchTargetException nste) { 
+      System.out.println("No apriltag found");
+        m_drivetrain.setControl(
+          alignRequest.withRotationalRate(-1.5*rotationalRate).withVelocityX(-1.5*velocityX)); //Continue moving after losing sight temporarily 
+      }
+      
     }
-    private State currentState = State.ALIGN;
+  
 
-    public enum AlignmentDirection {
-        CENTER, LEFT, RIGHT
-    }
-    private final AlignmentDirection direction;
+  @Override
+  public boolean isFinished() {
+    return rotationalPidController.atSetpoint() && xPidController.atSetpoint();
+  }
 
-    // Default constructor aligns to center (target straight ahead)
-    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem vision) {
-        this(drivetrain, vision, AlignmentDirection.CENTER);
-    }
-
-    // Optionally allow an alignment bias (e.g. LEFT or RIGHT)
-    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem vision, AlignmentDirection direction) {
-        this.drivetrain = drivetrain;
-        this.vision = vision;
-        this.direction = direction;
-        addRequirements(drivetrain);
-    }
-
-    @Override
-    public void initialize() {
-        currentState = State.ALIGN;
-    }
-
-    @Override
-    public void execute() {
-        if (!vision.hasTarget()) {
-            // If no target is seen, reset state and stop movement.
-            currentState = State.ALIGN;
-            drivetrain.setControl(new SwerveRequest.RobotCentric()
-                .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
-                .withVelocityX(0)
-                .withVelocityY(0)
-                .withRotationalRate(0));
-            return;
-        }
-
-        double tx = vision.getTx();
-
-        // Apply optional bias for left/right alignment.
-        if (direction == AlignmentDirection.LEFT) {
-            tx -= 2.0;
-        } else if (direction == AlignmentDirection.RIGHT) {
-            tx += 2.0;
-        }
-
-        // State machine: in ALIGN state we correct laterally and rotationally (without moving forward)
-        // until the target is centered; then we switch to APPROACH state.
-        if (currentState == State.ALIGN) {
-            double lateral = kY_align * tx;                // move left/right proportionally to error
-            double rotation = kR_align * Math.toRadians(tx); // rotate proportionally (tx converted to radians)
-            double forward = 0;                            // no forward motion during alignment
-
-            if (Math.abs(tx) < toleranceAlign) {
-                currentState = State.APPROACH;  // target is centered—ready to approach
-            }
-
-            SwerveRequest.RobotCentric request = new SwerveRequest.RobotCentric()
-                .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
-                .withVelocityX(forward)
-                .withVelocityY(lateral)
-                .withRotationalRate(rotation);
-            drivetrain.setControl(request);
-        }
-        // In the APPROACH state we drive forward and apply gentler corrections.
-        else if (currentState == State.APPROACH) {
-            double lateral = kY_approach * tx;
-            double rotation = kR_approach * Math.toRadians(tx);
-            double forward = forwardSpeed;
-
-            // If the error increases beyond a threshold, revert to the ALIGN state.
-            if (Math.abs(tx) > toleranceApproachExit) {
-                currentState = State.ALIGN;
-            }
-
-            SwerveRequest.RobotCentric request = new SwerveRequest.RobotCentric()
-                .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
-                .withVelocityX(forward)
-                .withVelocityY(lateral)
-                .withRotationalRate(rotation);
-            drivetrain.setControl(request);
-        }
-    }
-
-    @Override
-    public void end(boolean interrupted) {
-        // Stop motion when the command ends.
-        drivetrain.setControl(new SwerveRequest.RobotCentric()
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
-            .withVelocityX(0)
-            .withVelocityY(0)
-            .withRotationalRate(0));
-    }
-
-    @Override
-    public boolean isFinished() {
-        // This command continues until externally cancelled (or add a condition based on distance
-        return false;
-    }
+  @Override
+  public void end(boolean interrupted) {
+    m_drivetrain.applyRequest(() -> idleRequest);
+  }
 }

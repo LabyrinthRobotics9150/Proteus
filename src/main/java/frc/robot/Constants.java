@@ -42,5 +42,11 @@ public final class Constants {
     public static final double CAMERA_ROLL = 0;
     public static final double CAMERA_PITCH = -2;
     public static final double CAMERA_YAW = 0;
+
+    public static final Double ROTATE_P = .05;
+    public static final Double ROTATE_I = .00;
+    public static final Double ROTATE_D = .001;
+    public static final Double TOLERANCE = .01;
+
   }
 }

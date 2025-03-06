@@ -22,7 +22,6 @@ import frc.robot.commands.Intake.MovePivotManualCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
 import frc.robot.commands.Limelight.AutoAlignCommand;
 import frc.robot.commands.Limelight.FollowClosestAprilTagCommand;
-import frc.robot.commands.Limelight.AutoAlignCommand.AlignmentDirection;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
@@ -48,7 +47,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   // primary
   IntakeScoreCommand intakeScoreCommand = new IntakeScoreCommand(m_elevator, m_intake);
   AutoAlignCommand alignRightCommand = new AutoAlignCommand( drivetrain, limelight);
-  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight, AlignmentDirection.LEFT);
+  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight);
   
   // secondary
     HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.95);
