@@ -37,6 +37,7 @@ public class AutoAlignCommand extends Command {
     @Override
     public void execute() {
         if (vision.hasTarget()) {
+            System.out.println("target!");
             // Get horizontal offset in degrees from limelight
             double tx = vision.getTx();
             // Optionally add a bias if aligning left/right (for example purposes, here we simply subtract or add a fixed offset)
