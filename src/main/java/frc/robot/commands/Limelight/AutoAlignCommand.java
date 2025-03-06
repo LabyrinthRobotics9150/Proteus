@@ -40,12 +40,13 @@ public class AutoAlignCommand extends Command {
     private static final double MIN_ROTATIONAL_OUTPUT = 0.1; // radians per second
     private static final double MIN_VELOCITY_OUTPUT = 0.2;    // meters per second
     // Rotation error threshold (degrees) for “good enough” rotation.
-    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 2.0;
+    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = .5;
     
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
     private static int tagID = -1;
+    private double yoffset;
     
     // State machine for sequential control.
     private enum AlignStage {
@@ -61,11 +62,24 @@ public class AutoAlignCommand extends Command {
     public double rotationalRate = 0;
     public double velocityX = 0;
     public double velocityY = 0;
-    
+    // align to closest apriltag centrally
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
+        yoffset = 0;
         addRequirements(m_Limelight);
+    }
+    // align to closest apriltag left/right
+    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, Boolean rightAlign) {
+        this.m_drivetrain = drivetrain;
+        this.m_Limelight = limelight;
+        addRequirements(m_Limelight);
+        if (rightAlign) {
+            yoffset = 2.0;
+        } else {
+            yoffset = -2.0;
+        }
+
     }
     
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, int ID) {
@@ -73,6 +87,7 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         if (ID < 0) throw new IllegalArgumentException("AprilTag ID cannot be negative");
         tagID = ID;
+        yoffset = 0;
         addRequirements(m_Limelight);
     }
     
@@ -124,7 +139,7 @@ public class AutoAlignCommand extends Command {
                 case ALIGN_Y_1: {
                     // Stage 2: Correct lateral (Y) alignment.
                     double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-                    double rawYOutput = yPidController.calculate(yError, 0.0);
+                    double rawYOutput = yPidController.calculate(yError, yoffset);
                     outputY = rawYOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
                     if (Math.abs(outputY) < MIN_VELOCITY_OUTPUT) {
                         outputY = Math.copySign(MIN_VELOCITY_OUTPUT, outputY);
@@ -172,7 +187,7 @@ public class AutoAlignCommand extends Command {
                 case FINAL_CORRECT_Y: {
                     // Stage 5: Final Y correction.
                     double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-                    double rawYOutput = yPidController.calculate(yError, 0.0);
+                    double rawYOutput = yPidController.calculate(yError, yoffset);
                     outputY = rawYOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
                     if (Math.abs(outputY) < MIN_VELOCITY_OUTPUT) {
                         outputY = Math.copySign(MIN_VELOCITY_OUTPUT, outputY);
