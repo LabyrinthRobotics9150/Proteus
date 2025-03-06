@@ -40,7 +40,7 @@ public class AutoAlignCommand extends Command {
     private static final double MIN_ROTATIONAL_OUTPUT = 0.1; // radians per second
     private static final double MIN_VELOCITY_OUTPUT = 0.2;    // meters per second
     // Rotation error threshold (degrees) for “good enough” rotation.
-    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = .3;
+    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1;
     
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
