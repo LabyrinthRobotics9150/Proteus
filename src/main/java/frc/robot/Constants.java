@@ -30,8 +30,17 @@ public final class Constants {
         public static final int kElevatorLeaderCanId = 4;
   }
   public static class VisionConstants {
-    public static final String LIMELIGHT_NAME = "";
-    public static final Double LEFT_ALIGN_TX_SETPOINT = .3;
-    public static final Double RIGHT_ALIGN_TX_SETPOINT = .3;
+    public static final String LIMELIGHT_NAME = "limelight";
+    public static final double TARGET_DISTANCE_METERS = 0.3;
+    public static final double LEFT_ALIGN_TX_SETPOINT = -0.2;
+    public static final double RIGHT_ALIGN_TX_SETPOINT = 0.2;
+    public static final int[] ALLOWED_TAG_IDS = {0,1,5,8,9,10,11,12};
+    // Camera pose constants
+    public static final double CAMERA_X_OFFSET = 0.3556;
+    public static final double CAMERA_Y_OFFSET = 0.1016;
+    public static final double CAMERA_Z_OFFSET = 0.3429;
+    public static final double CAMERA_ROLL = 0;
+    public static final double CAMERA_PITCH = -2;
+    public static final double CAMERA_YAW = 0;
   }
 }
