@@ -77,7 +77,7 @@ public class AutoAlignCommand extends Command {
             // Calculate rotation control
             rotationalRate = rotationalPidController.calculate(fiducial.txnc, 0.0) 
                 * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
-                * -0.1;
+                * -2;
 
             // Calculate X velocity (forward/backward)
             velocityX = xPidController.calculate(fiducial.distToRobot, 1.0) 
@@ -93,7 +93,7 @@ public class AutoAlignCommand extends Command {
             // Apply movement
             m_drivetrain.setControl(
                 alignRequest
-                    .withRotationalRate(rotationalRate)
+                    .withRotationalRate(-rotationalRate)
                     .withVelocityX(-velocityX)
                     .withVelocityY(velocityY)
             );
@@ -113,6 +113,10 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public boolean isFinished() {
+        System.out.println("rotation: " + rotationalPidController.atSetpoint());
+        System.out.println("x: " + xPidController.atSetpoint());
+        System.out.println("y: " + yPidController.atSetpoint());
+
         return rotationalPidController.atSetpoint() 
             && xPidController.atSetpoint() 
             && yPidController.atSetpoint();
