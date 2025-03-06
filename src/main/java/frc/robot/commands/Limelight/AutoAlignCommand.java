@@ -61,12 +61,7 @@ public class AutoAlignCommand extends Command {
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, int ID, AlignmentDirection direction) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
-        /* 
-         * 
-        if (ID < 0 && direction != AlignmentDirection.CENTER) {
-            throw new IllegalArgumentException("When using alignment direction, tagID must be specified");
-        }
-        */
+        // Removed the validation check here
         this.tagID = ID;
         this.alignmentDirection = direction;
         
@@ -75,7 +70,7 @@ public class AutoAlignCommand extends Command {
             0.05000, 0.000000, 0.001000, 0.01);
         xPidController = new PIDControllerConfigurable(
             0.400000, 0.000000, 0.000600, 0.01);
-
+    
         addRequirements(m_Limelight);
     }
 
