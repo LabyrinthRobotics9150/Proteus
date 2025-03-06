@@ -37,14 +37,23 @@ public class AutoAlignCommand extends Command {
         new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
 
     // Increased minimum output thresholds (tunable)
-    private static final double MIN_ROTATIONAL_OUTPUT = 0.1; // increased minimum power (radians per second)
-    private static final double MIN_VELOCITY_OUTPUT = 0.2;    // increased minimum power (meters per second)
+    private static final double MIN_ROTATIONAL_OUTPUT = 0.1; // Minimum power for rotation (radians per second)
+    private static final double MIN_VELOCITY_OUTPUT = 0.2;    // Minimum power for translation (meters per second)
 
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
     private static int tagID = -1;
     
+    // State machine for sequential control.
+    private enum AlignStage {
+        ALIGN_Y,
+        ALIGN_ROTATION,
+        CORRECT_Y,
+        DRIVE_X
+    }
+    private AlignStage currentStage;
+
     public double rotationalRate = 0;
     public double velocityX = 0;
     public double velocityY = 0;
@@ -65,18 +74,19 @@ public class AutoAlignCommand extends Command {
 
     @Override
     public void initialize() {
-        // Reset controllers on start.
+        // Reset controllers and start with Y alignment.
         rotationalPidController.reset();
         xPidController.reset();
         yPidController.reset();
+        currentStage = AlignStage.ALIGN_Y;
     }
 
     @Override
     public void execute() {
-        // Update rotational PID parameters from SmartDashboard without recreating the controller.
+        // Update rotational PID parameters from SmartDashboard.
         rotationalPidController.setP(SmartDashboard.getNumber("Rotate P", VisionConstants.ROTATE_P));
         rotationalPidController.setD(SmartDashboard.getNumber("Rotate D", VisionConstants.ROTATE_D));
-        // (Optionally update I as needed)
+        // (Optionally update other PID gains if needed.)
 
         try {
             RawFiducial fiducial;
@@ -85,72 +95,106 @@ public class AutoAlignCommand extends Command {
             } else {
                 fiducial = m_Limelight.getFiducialWithId(tagID);
             }
-
-            // --- Compute Y (strafing) output first ---
-            double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-            double rawYOutput = yPidController.calculate(yError, 0.0);
-            velocityY = rawYOutput 
-                * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
-                * 0.6;
-            if (!yPidController.atSetpoint() && Math.abs(velocityY) < MIN_VELOCITY_OUTPUT) {
-                velocityY = Math.copySign(MIN_VELOCITY_OUTPUT, velocityY);
-            }
-
-            // --- Compute rotational output next ---
-            double rawRotationalOutput = rotationalPidController.calculate(fiducial.txnc, 0.0);
-            rotationalRate = rawRotationalOutput 
-                * RotationsPerSecond.of(0.75).in(RadiansPerSecond) 
-                * -2;
-            if (!rotationalPidController.atSetpoint() && Math.abs(rotationalRate) < MIN_ROTATIONAL_OUTPUT) {
-                rotationalRate = Math.copySign(MIN_ROTATIONAL_OUTPUT, rotationalRate);
-            }
-
-            // --- Drive X only when Y and rotation are aligned ---
-            if (yPidController.atSetpoint() && rotationalPidController.atSetpoint()) {
-                double rawXOutput = xPidController.calculate(fiducial.distToRobot, 1.0);
-                velocityX = rawXOutput 
-                    * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) 
-                    * 0.6;
-                if (!xPidController.atSetpoint() && Math.abs(velocityX) < MIN_VELOCITY_OUTPUT) {
-                    velocityX = Math.copySign(MIN_VELOCITY_OUTPUT, velocityX);
+            
+            // Initialize control outputs.
+            double outputX = 0.0;
+            double outputY = 0.0;
+            double outputRotation = 0.0;
+            
+            switch(currentStage) {
+                case ALIGN_Y: {
+                    // Step 1: Adjust lateral position (Y) only.
+                    double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                    double rawYOutput = yPidController.calculate(yError, 0.0);
+                    outputY = rawYOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
+                    if (!yPidController.atSetpoint() && Math.abs(outputY) < MIN_VELOCITY_OUTPUT) {
+                        outputY = Math.copySign(MIN_VELOCITY_OUTPUT, outputY);
+                    }
+                    // Hold X and rotation at zero.
+                    outputX = 0.0;
+                    outputRotation = 0.0;
+                    
+                    // Move to next stage when Y is aligned.
+                    if (yPidController.atSetpoint()) {
+                        currentStage = AlignStage.ALIGN_ROTATION;
+                    }
+                    break;
                 }
-            } else {
-                // Prevent x movement until y and rotation are on target.
-                velocityX = 0.0;
+                case ALIGN_ROTATION: {
+                    // Step 2: Adjust rotation while holding X and Y.
+                    double rawRotOutput = rotationalPidController.calculate(fiducial.txnc, 0.0);
+                    outputRotation = rawRotOutput * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -2;
+                    if (!rotationalPidController.atSetpoint() && Math.abs(outputRotation) < MIN_ROTATIONAL_OUTPUT) {
+                        outputRotation = Math.copySign(MIN_ROTATIONAL_OUTPUT, outputRotation);
+                    }
+                    outputX = 0.0;
+                    outputY = 0.0;
+                    
+                    // When rotation is aligned, move to Y correction.
+                    if (rotationalPidController.atSetpoint()) {
+                        currentStage = AlignStage.CORRECT_Y;
+                    }
+                    break;
+                }
+                case CORRECT_Y: {
+                    // Step 3: Re-check and correct Y if needed.
+                    double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                    double rawYOutput = yPidController.calculate(yError, 0.0);
+                    outputY = rawYOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
+                    if (!yPidController.atSetpoint() && Math.abs(outputY) < MIN_VELOCITY_OUTPUT) {
+                        outputY = Math.copySign(MIN_VELOCITY_OUTPUT, outputY);
+                    }
+                    outputX = 0.0;
+                    outputRotation = 0.0;
+                    
+                    // When Y is corrected, move to forward (X) drive.
+                    if (yPidController.atSetpoint()) {
+                        currentStage = AlignStage.DRIVE_X;
+                    }
+                    break;
+                }
+                case DRIVE_X: {
+                    // Step 4: Drive forward along the X-axis.
+                    double rawXOutput = xPidController.calculate(fiducial.distToRobot, 1.0);
+                    outputX = rawXOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
+                    if (!xPidController.atSetpoint() && Math.abs(outputX) < MIN_VELOCITY_OUTPUT) {
+                        outputX = Math.copySign(MIN_VELOCITY_OUTPUT, outputX);
+                    }
+                    // Hold Y and rotation at zero.
+                    outputY = 0.0;
+                    outputRotation = 0.0;
+                    break;
+                }
             }
-
-            // Apply the computed movement to the drivetrain.
+            
+            // Send the computed commands to the drivetrain.
             m_drivetrain.setControl(
                 alignRequest
-                    .withRotationalRate(-rotationalRate)  // Confirm sign as needed.
-                    .withVelocityX(-velocityX)
-                    .withVelocityY(velocityY)
+                    .withRotationalRate(-outputRotation)  // Adjust sign as needed.
+                    .withVelocityX(-outputX)
+                    .withVelocityY(outputY)
             );
-
-            // Update SmartDashboard values.
+            
+            // Update SmartDashboard with current values.
+            SmartDashboard.putString("Align Stage", currentStage.name());
             SmartDashboard.putNumber("txnc", fiducial.txnc);
             SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
-            SmartDashboard.putNumber("rotationalRate", rotationalRate);
-            SmartDashboard.putNumber("velocityX", velocityX);
-            SmartDashboard.putNumber("velocityY", velocityY);
-
+            SmartDashboard.putNumber("rotationalRate", outputRotation);
+            SmartDashboard.putNumber("velocityX", outputX);
+            SmartDashboard.putNumber("velocityY", outputY);
+            
         } catch (VisionSubsystem.NoSuchTargetException e) {
             System.out.println("No AprilTag found");
             m_drivetrain.setControl(idleRequest);
         }
     }
-
+    
     @Override
     public boolean isFinished() {
-        System.out.println("rotation: " + rotationalPidController.atSetpoint());
-        System.out.println("x: " + xPidController.atSetpoint());
-        System.out.println("y: " + yPidController.atSetpoint());
-
-        return rotationalPidController.atSetpoint() 
-            && xPidController.atSetpoint() 
-            && yPidController.atSetpoint();
+        // Finish when in DRIVE_X stage and the X controller is at setpoint.
+        return currentStage == AlignStage.DRIVE_X && xPidController.atSetpoint();
     }
-
+    
     @Override
     public void end(boolean interrupted) {
         m_drivetrain.applyRequest(() -> idleRequest);
