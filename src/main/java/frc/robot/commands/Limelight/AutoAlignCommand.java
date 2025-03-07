@@ -85,7 +85,6 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
         // For right alignment, use a small positive offset; for left alignment, a small negative offset.
-        yoffset = rightAlign ? -0.75 : 0.75;
     }
     
     @Override
@@ -137,6 +136,7 @@ public class AutoAlignCommand extends Command {
         
         switch (currentStage) {
             case ALIGN_Y: {
+                System.out.println("y");
                 // Compute lateral error:
                 // Using the target’s horizontal angle (txnc) converted to radians, then
                 // lateral error = distance * sin(angle).
@@ -154,6 +154,7 @@ public class AutoAlignCommand extends Command {
                 break;
             }
             case ALIGN_ROTATION: {
+                System.out.println("rotate");
                 // Compute the rotation error in radians.
                 double rotationErrorRad = Units.degreesToRadians(fiducial.txnc);
                 // Calculate the rotation output only once.
@@ -165,12 +166,14 @@ public class AutoAlignCommand extends Command {
                 if (Math.abs(rotationErrorRad) < Math.toRadians(1.0)) {
                     fixedRotationOutput = 0.0;
                     currentStage = AlignStage.DRIVE_X;
+                    System.out.println("at setpoint");
                 }
                 break;
             }
             case DRIVE_X: {
+                System.out.println("x");
                 // Drive forward/backward until the robot is at the desired distance.
-                double desiredDistance = 0.5; // meters
+                double desiredDistance = 0.2; // meters
                 outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
                 // Do not revert to earlier stages even if txnc changes.
                 break;
