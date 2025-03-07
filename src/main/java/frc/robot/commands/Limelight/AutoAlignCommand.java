@@ -46,7 +46,7 @@ public class AutoAlignCommand extends Command {
     // Allowed AprilTag IDs for auto-alignment.
     private static final int[] ALLOWED_TAG_IDS = {17, 18, 19, 20, 21, 22, 6, 7, 8, 9, 10, 11};
     
-    // Simplified state machine for alignment.
+    // state machine for alignment.
     private enum AlignStage {
         ALIGN_ROTATION,
         ALIGN_Y,
@@ -84,6 +84,7 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void execute() {
+        // lock onto apriltag fix & only allowed apriltags
         RawFiducial fiducial;
         try {
             if (tagID != -1) {
@@ -171,6 +172,7 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public boolean isFinished() {
+        // if everyone's happy, we good
         return xPidController.atSetpoint() && rotationalPidController.atSetpoint() && yPidController.atSetpoint();
     }
     

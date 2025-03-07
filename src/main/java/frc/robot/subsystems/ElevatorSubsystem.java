@@ -43,12 +43,6 @@ public class ElevatorSubsystem extends SubsystemBase {
     private final Timer profileTimer = new Timer();
     private TrapezoidProfile.State targetState = new TrapezoidProfile.State();
     private TrapezoidProfile.State currentState = new TrapezoidProfile.State();
-
-    // Motion profile constraints.
-    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(
-        9,  // max velocity (inches/sec)
-        6    // max acceleration (inches/sec²)
-    );
     private double previousPosition;
 
     public ElevatorSubsystem() {
@@ -143,8 +137,8 @@ public class ElevatorSubsystem extends SubsystemBase {
             );
             // Mirror the leader's command to the follower.
             double leaderCommand = elevatorMotor.get();
-                followerMotor.set(leaderCommand);
-            }
+            followerMotor.set(leaderCommand);
+        }
     }
 
     public void setElevatorSpeed(double speed) {
@@ -169,21 +163,25 @@ public class ElevatorSubsystem extends SubsystemBase {
         return elevatorEncoder.getPosition();
     }
 
+    // Modified setHeight() method to hold at the limit switch position.
     public void setHeight(double targetHeight) {
-        if ((forwardLimitSwitch.isPressed() && targetHeight > getHeight()) ||
-            (reverseLimitSwitch.isPressed() && targetHeight < getHeight())) {
-            stopElevator();
-        } else {
-            System.out.println("Moving elevator to new height: " + targetHeight);
-            targetState = new TrapezoidProfile.State(targetHeight, 0);
-            currentState = new TrapezoidProfile.State(getHeight(), elevatorEncoder.getVelocity());
-            // Determine direction and adjust constraints
-            boolean movingUp = targetHeight > getHeight();
-            double maxVel = movingUp ? 18 : 18.0; // Lower max velocity when moving up
-            double maxAcc = movingUp ? 12 : 12.0;  // Lower max acceleration when moving up
-            motionProfile = new TrapezoidProfile(new TrapezoidProfile.Constraints(maxVel, maxAcc));
-            profileTimer.reset();
+        // If the forward limit switch is hit and the command is upward, hold the current position.
+        if (forwardLimitSwitch.isPressed() && targetHeight > getHeight()) {
+            targetHeight = getHeight();
         }
+        // Similarly, if the reverse limit switch is hit and the command is downward, hold the current position.
+        if (reverseLimitSwitch.isPressed() && targetHeight < getHeight()) {
+            targetHeight = getHeight();
+        }
+        System.out.println("Moving elevator to new height: " + targetHeight);
+        targetState = new TrapezoidProfile.State(targetHeight, 0);
+        currentState = new TrapezoidProfile.State(getHeight(), elevatorEncoder.getVelocity());
+        // Determine direction and adjust constraints
+        boolean movingUp = targetHeight > getHeight();
+        double maxVel = movingUp ? 18 : 18.0; // Adjust max velocity if needed.
+        double maxAcc = movingUp ? 12 : 12.0;  // Adjust max acceleration if needed.
+        motionProfile = new TrapezoidProfile(new TrapezoidProfile.Constraints(maxVel, maxAcc));
+        profileTimer.reset();
     }
 
     public edu.wpi.first.wpilibj2.command.Command goToHeight(double targetHeight) {

@@ -2,8 +2,6 @@ package frc.robot.commands.autos;
 
 import edu.wpi.first.wpilibj2.command.*;
 import frc.robot.commands.Limelight.AutoAlignCommand;
-import frc.robot.commands.autos.ElevatorRaise;
-import frc.robot.commands.autos.ShootCommand;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
@@ -66,7 +64,7 @@ public class AutonomousSequence extends SequentialCommandGroup {
         );
     }
     
-    // Helper method: returns true if the vision is aligned (using a threshold on txnc).
+    // Returns true if the vision is aligned (using a threshold on txnc).
     private static boolean isAligned(VisionSubsystem limelight) {
         try {
             RawFiducial fiducial = limelight.getClosestFiducial();
