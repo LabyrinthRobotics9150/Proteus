@@ -6,83 +6,86 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
+import frc.robot.subsystems.LimelightHelpers.RawFiducial;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.util.Units;
 
 /**
- * AutoAlignCommand that uses only 2D data from the Limelight.
- * It aligns the robot by first correcting rotation (using tx) and then driving
- * to a desired distance (estimated via the target area ta).
+ * A simple extension of PIDController that allows configurable tolerance.
+ */
+class PIDControllerConfigurable extends PIDController {
+    public PIDControllerConfigurable(double kP, double kI, double kD) {
+        super(kP, kI, kD);
+    }
+    
+    public PIDControllerConfigurable(double kP, double kI, double kD, double tolerance) {
+        super(kP, kI, kD);
+        this.setTolerance(tolerance);
+    }
+}
+
+/**
+ * Revised AutoAlignCommand now performs alignment in three stages:
+ * 
+ * 1. ALIGN_Y: Compute the lateral (Y) correction once (using radians internally).
+ * 2. ALIGN_ROTATION: Compute the rotation correction once (using radians internally).
+ * 3. DRIVE_X: Continuously drive forward/backward until the robot reaches the desired distance.
+ * 
+ * After the first two stages the computed outputs are “fixed” (i.e. not updated), so the command
+ * only calculates the rotation and lateral corrections one time.
  */
 public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
     
-    // A simple PIDController subclass that allows setting tolerance.
-    private static class PIDControllerConfigurable extends PIDController {
-        public PIDControllerConfigurable(double kP, double kI, double kD) {
-            super(kP, kI, kD);
-        }
-        public PIDControllerConfigurable(double kP, double kI, double kD, double tolerance) {
-            super(kP, kI, kD);
-            this.setTolerance(tolerance);
-        }
-    }
+    // New (faster) PID gains and tolerances—all angle calculations are done in radians now.
+    private static PIDControllerConfigurable rotationalPidController = 
+        new PIDControllerConfigurable(0.3, 0.0, 0.01, Math.toRadians(1.0));
+    private static final PIDControllerConfigurable xPidController = 
+        new PIDControllerConfigurable(1.2, 0.0, 0.002, 0.05);
+    private static final PIDControllerConfigurable yPidController = 
+        new PIDControllerConfigurable(1.2, 0.0, 0.002, 0.05);
     
-    // PID controllers (tuned for your robot) – note these values may need adjustment.
-    private static PIDControllerConfigurable rotationalPidController =
-        new PIDControllerConfigurable(0.15, 0.0, 0.005, 1.0);
-    private static final PIDControllerConfigurable xPidController =
-        new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
-    private static final PIDControllerConfigurable yPidController =
-        new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
-    
-    // Acceptable rotation error (in degrees) when the target is centered.
-    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1.0;
-    
-    // The SwerveRequest objects used to send commands to the drivetrain.
-    private static final SwerveRequest.RobotCentric alignRequest =
+    // Using a robot-centric control request.
+    private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
     
-    // For lateral (side-to-side) alignment, we allow an offset (in meters).
-    // For central alignment, yoffset is zero.
+    // Keep track of the chosen AprilTag (if available)
+    private static int tagID = -1;
+    // A lateral offset (in meters) that can be set via the alternate constructor.
     private double yoffset;
     
-    // The alignment is done in two stages:
-    // 1. ALIGN_ROTATION: Rotate the robot until the horizontal error (tx) is near zero.
-    // 2. DRIVE_X: Drive forward/backward (with optional lateral adjustment) until the target is at the desired distance.
+    // Allowed AprilTag IDs for auto-alignment.
+    private static final int[] ALLOWED_TAG_IDS = {17, 18, 19, 20, 21, 22, 6, 7, 8, 9, 10, 11};
+    
+    // We now use a simple three‐stage state machine.
     private enum AlignStage {
+        ALIGN_Y,
         ALIGN_ROTATION,
         DRIVE_X
     }
     private AlignStage currentStage;
     
-    // The desired distance (in meters) from the target.
-    private static final double DESIRED_DISTANCE = 0.5;
-    // A constant to convert the target area (ta) to an estimated distance.
-    // (This is a simple heuristic – tune as necessary.)
-    private static final double DISTANCE_CONSTANT = 1.0;
+    // These fields will store the one‐shot outputs.
+    private Double fixedRotationOutput = null;
+    private Double fixedLateralOutput = null;
     
-    /**
-     * Constructor for central alignment.
-     */
+    // Constructor for central alignment.
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
-        this.yoffset = 0.0;
+        yoffset = 0;
         addRequirements(m_Limelight);
     }
     
-    /**
-     * Constructor that accepts a rightAlign flag to offset laterally.
-     * For right alignment, a small negative offset is used; for left, a positive offset.
-     */
+    // Constructor for left/right alignment (sets a lateral offset).
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, boolean rightAlign) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
-        this.yoffset = rightAlign ? -0.75 : 0.75;
+        // For right alignment, use a small positive offset; for left alignment, a small negative offset.
+        yoffset = rightAlign ? -0.75 : 0.75;
     }
     
     @Override
@@ -90,81 +93,111 @@ public class AutoAlignCommand extends Command {
         rotationalPidController.reset();
         xPidController.reset();
         yPidController.reset();
-        currentStage = AlignStage.ALIGN_ROTATION;
+        fixedRotationOutput = null;
+        fixedLateralOutput = null;
+        try {
+            // Choose the closest fiducial as the target.
+            tagID = m_Limelight.getClosestFiducial().id;
+        } catch (VisionSubsystem.NoSuchTargetException e) {
+            tagID = -1;
+        }
+        // Start with lateral alignment.
+        currentStage = AlignStage.ALIGN_Y;
     }
     
     @Override
     public void execute() {
-        // Retrieve 2D vision metrics.
-        double tx = m_Limelight.getClosestTX();  // Horizontal offset (in degrees)
-        double ta = m_Limelight.getClosestTA();  // Target area (used to estimate distance)
-        
-        // If no target is detected, stop the drivetrain.
-        if (ta <= 0) {
+        RawFiducial fiducial;
+        try {
+            if (tagID != -1) {
+                fiducial = m_Limelight.getFiducialWithId(tagID);
+            } else {
+                fiducial = m_Limelight.getClosestFiducial();
+                tagID = fiducial.id;
+            }
+            boolean allowed = false;
+            for (int id : ALLOWED_TAG_IDS) {
+                if (fiducial.id == id) {
+                    allowed = true;
+                    break;
+                }
+            }
+            if (!allowed) {
+                m_drivetrain.setControl(idleRequest);
+                return;
+            }
+        } catch (VisionSubsystem.NoSuchTargetException e) {
             m_drivetrain.setControl(idleRequest);
             return;
         }
-        
-        // Estimate the distance to the target from the target area.
-        // (This is a simple heuristic; in practice, you might use camera mounting parameters.)
-        double estimatedDistance = DISTANCE_CONSTANT / Math.sqrt(ta);
         
         double outputX = 0.0;
         double outputY = 0.0;
         double outputRotation = 0.0;
         
         switch (currentStage) {
-            case ALIGN_ROTATION:
-                // Rotate the robot until the horizontal error (tx) is within a small threshold.
-                double rotationError = tx;
-                if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
-                    outputRotation = 0.0;
-                    currentStage = AlignStage.DRIVE_X;
-                } else {
-                    outputRotation = rotationalPidController.calculate(rotationError, 0.0);
-                    double maxRotationRate = 0.5; // Limit the rotational speed
-                    outputRotation = Math.max(-maxRotationRate, Math.min(maxRotationRate, outputRotation));
+            case ALIGN_Y: {
+                // Compute lateral error:
+                // Using the target’s horizontal angle (txnc) converted to radians, then
+                // lateral error = distance * sin(angle).
+                double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                // Calculate the lateral output only once.
+                if (fixedLateralOutput == null) {
+                    fixedLateralOutput = yPidController.calculate(lateralError, yoffset);
                 }
-                break;
-            case DRIVE_X:
-                // Use the estimated distance to drive forward/backward.
-                // Optionally, correct lateral error using the horizontal offset (tx).
-                double lateralError = estimatedDistance * Math.sin(Math.toRadians(tx));
-                if (Math.abs(lateralError - yoffset) > 0.2) { // tolerance of ~20cm
-                    outputY = yPidController.calculate(lateralError, yoffset);
-                }
-                if (Math.abs(estimatedDistance - DESIRED_DISTANCE) > 0.05) { // tolerance of ~5cm
-                    outputX = -xPidController.calculate(estimatedDistance, DESIRED_DISTANCE);
-                }
-                // If the horizontal error increases, return to rotation alignment.
-                if (Math.abs(tx) > ROTATION_ERROR_THRESHOLD_DEGREES) {
+                outputY = fixedLateralOutput;
+                // When the error is within tolerance, lock in the lateral correction.
+                if (Math.abs(lateralError - yoffset) < 0.2) { // 20 cm tolerance
+                    fixedLateralOutput = 0.0;
                     currentStage = AlignStage.ALIGN_ROTATION;
                 }
                 break;
+            }
+            case ALIGN_ROTATION: {
+                // Compute the rotation error in radians.
+                double rotationErrorRad = Units.degreesToRadians(fiducial.txnc);
+                // Calculate the rotation output only once.
+                if (fixedRotationOutput == null) {
+                    fixedRotationOutput = rotationalPidController.calculate(rotationErrorRad, 0.0);
+                }
+                outputRotation = fixedRotationOutput;
+                // Once the rotation error is within the (radian) tolerance, lock it in.
+                if (Math.abs(rotationErrorRad) < Math.toRadians(1.0)) {
+                    fixedRotationOutput = 0.0;
+                    currentStage = AlignStage.DRIVE_X;
+                }
+                break;
+            }
+            case DRIVE_X: {
+                // Drive forward/backward until the robot is at the desired distance.
+                double desiredDistance = 0.5; // meters
+                outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
+                // Do not revert to earlier stages even if txnc changes.
+                break;
+            }
         }
         
+        // Send the computed (and fixed, when appropriate) control outputs.
         m_drivetrain.setControl(
-            alignRequest.withRotationalRate(outputRotation)
-                        .withVelocityX(outputX)
-                        .withVelocityY(outputY)
+            alignRequest
+                .withRotationalRate(outputRotation)
+                .withVelocityX(outputX)
+                .withVelocityY(outputY)
         );
         
-        // Publish debug information.
+        // For debugging: publish the current stage and errors.
         SmartDashboard.putString("Align Stage", currentStage.name());
-        SmartDashboard.putNumber("tx", tx);
-        SmartDashboard.putNumber("Estimated Distance", estimatedDistance);
-        SmartDashboard.putNumber("Lateral Error", estimatedDistance * Math.sin(Math.toRadians(tx)));
-        SmartDashboard.putNumber("Output Rotation", outputRotation);
-        SmartDashboard.putNumber("Output X", outputX);
-        SmartDashboard.putNumber("Output Y", outputY);
+        SmartDashboard.putNumber("txnc (deg)", fiducial.txnc);
+        SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
+        SmartDashboard.putNumber("Applied rotationalRate (rad/s)", outputRotation);
+        SmartDashboard.putNumber("Applied velocityX", outputX);
+        SmartDashboard.putNumber("Applied velocityY", outputY);
     }
     
     @Override
     public boolean isFinished() {
-        // Finish when all controllers have reached their setpoints.
-        return rotationalPidController.atSetpoint() &&
-               xPidController.atSetpoint() &&
-               yPidController.atSetpoint();
+        // We consider the command finished once the x (distance) controller reaches its setpoint.
+        return xPidController.atSetpoint();
     }
     
     @Override
