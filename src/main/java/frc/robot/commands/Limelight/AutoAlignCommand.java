@@ -79,7 +79,7 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
         // For right alignment, set a small positive offset; for left alignment, a small negative offset.
-        yoffset = rightAlign ? -.5 : .5;
+        yoffset = rightAlign ? -.75 : .75;
     }
     
     @Override
