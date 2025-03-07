@@ -26,10 +26,10 @@ public class AutoAlignCommand extends Command {
     protected final VisionSubsystem m_Limelight;
     
     // Updated PID controllers for faster and smoother movement.
-    // Rotational controller: increased P and D gains with a looser tolerance to reduce overshoot.
+    // Rotational controller remains unchanged.
     private static PIDControllerConfigurable rotationalPidController = 
         new PIDControllerConfigurable(0.15, 0.0, 0.005, 1.0);
-    // Forward (X) and lateral (Y) controllers: increased P for faster response.
+    // Forward (X) and lateral (Y) controllers.
     private static final PIDControllerConfigurable xPidController = 
         new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
     private static final PIDControllerConfigurable yPidController = 
@@ -67,7 +67,7 @@ public class AutoAlignCommand extends Command {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
-        // change yoffset depending on aligncommand mode
+        // For right alignment, set a small positive offset; for left alignment, a small negative offset.
         yoffset = rightAlign ? 0.01 : -0.01;
     }
     
@@ -122,22 +122,22 @@ public class AutoAlignCommand extends Command {
                     outputRotation = 0.0;
                     currentStage = AlignStage.ALIGN_Y;
                 } else {
-                    // Removed the negative sign so that negative tx results in a negative output,
-                    // causing the robot to rotate left.
+                    // Rotation remains unchanged.
                     outputRotation = rotationalPidController.calculate(rotationError, 0.0);
-                    double maxRotationRate = 0.5; // Adjust as needed to limit overshoot
+                    double maxRotationRate = 0.5; // Limit overshoot.
                     outputRotation = Math.max(-maxRotationRate, Math.min(maxRotationRate, outputRotation));
                 }
                 break;
             }
             case ALIGN_Y: {
-                // Lateral (Y) error based on distance and horizontal offset.
+                // Compute lateral (Y) error.
                 double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
                 if (Math.abs(yError - yoffset) < 0.05) { // within 5cm tolerance
                     outputY = 0.0;
                     currentStage = AlignStage.DRIVE_X;
                 } else {
-                    outputY = -yPidController.calculate(yError, yoffset);
+                    // Remove the negative sign so that the computed value is used directly.
+                    outputY = yPidController.calculate(yError, yoffset);
                 }
                 break;
             }
@@ -147,7 +147,8 @@ public class AutoAlignCommand extends Command {
                 if (Math.abs(fiducial.distToRobot - desiredDistance) < 0.05) { // within 5cm tolerance
                     outputX = 0.0;
                 } else {
-                    outputX = xPidController.calculate(fiducial.distToRobot, desiredDistance);
+                    // Invert the output so that the robot moves toward the tag.
+                    outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
                 }
                 // If the rotation error becomes significant again, return to rotation alignment.
                 if (Math.abs(fiducial.txnc) > ROTATION_ERROR_THRESHOLD_DEGREES) {
