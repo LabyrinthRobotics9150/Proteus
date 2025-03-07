@@ -39,11 +39,10 @@ public class AutoAlignCommand extends Command {
     
     private static int tagID = -1;
     private double yoffset;
-    private double desiredDistance = 0.3; // Closer target distance
+    private double desiredDistance = 0.6; // Closer target distance
 
     // Tolerance (in degrees) for acceptable rotation alignment.
     private static final double ROTATION_TOLERANCE = 1.0;
-    
     // Allowed AprilTag IDs for auto-alignment.
     private static final int[] ALLOWED_TAG_IDS = {17, 18, 19, 20, 21, 22, 6, 7, 8, 9, 10, 11};
     
