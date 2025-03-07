@@ -68,7 +68,7 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
         // For right alignment, set a small positive offset; for left alignment, a small negative offset.
-        yoffset = rightAlign ? 0.01 : -0.01;
+        yoffset = rightAlign ? 0.1 : -0.1;
     }
     
     @Override
@@ -144,7 +144,7 @@ public class AutoAlignCommand extends Command {
             }
             case DRIVE_X: {
                 // Drive forward/backward to reach a desired distance (e.g., 0.6 meters from the target).
-                double desiredDistance = 0.6;
+                double desiredDistance = 0.4;
                 System.out.println(fiducial.distToRobot);
                 if (Math.abs(fiducial.distToRobot - desiredDistance) < 0.05) { // within 5cm tolerance
                     outputX = 0.0;
