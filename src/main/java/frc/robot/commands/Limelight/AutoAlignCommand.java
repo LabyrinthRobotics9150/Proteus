@@ -121,8 +121,9 @@ public class AutoAlignCommand extends Command {
                     outputRotation = 0.0;
                     currentStage = AlignStage.ALIGN_Y;
                 } else {
-                    // Calculate rotation output and clamp it to reduce initial over-rotation.
-                    outputRotation = -rotationalPidController.calculate(rotationError, 0.0);
+                    // Removed the negative sign so that negative tx results in a negative output,
+                    // causing the robot to rotate left.
+                    outputRotation = rotationalPidController.calculate(rotationError, 0.0);
                     double maxRotationRate = 0.5; // Adjust as needed to limit overshoot
                     outputRotation = Math.max(-maxRotationRate, Math.min(maxRotationRate, outputRotation));
                 }
