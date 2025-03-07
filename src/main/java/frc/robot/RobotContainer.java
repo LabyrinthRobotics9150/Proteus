@@ -43,14 +43,14 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
   // primary
   IntakeScoreCommand intakeScoreCommand = new IntakeScoreCommand(m_elevator, m_intake);
-  AutoAlignCommand alignRightCommand = new AutoAlignCommand( drivetrain, limelight);
-  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight);
+  AutoAlignCommand alignRightCommand = new AutoAlignCommand( drivetrain, limelight, true);
+  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight, false);
   
   // secondary
     HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90  );
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
-    HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, 0);
+    HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, .2);
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
     WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.2);
     BallCommand ballCommand = new BallCommand(m_intake);

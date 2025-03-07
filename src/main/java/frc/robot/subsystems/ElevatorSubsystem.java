@@ -46,8 +46,8 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     // Motion profile constraints.
     private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(
-        6,  // max velocity (inches/sec)
-        3    // max acceleration (inches/sec²)
+        9,  // max velocity (inches/sec)
+        6    // max acceleration (inches/sec²)
     );
     private double previousPosition;
 
@@ -57,8 +57,8 @@ public class ElevatorSubsystem extends SubsystemBase {
         SmartDashboard.putNumber("Elevator kP", 0.5);
         SmartDashboard.putNumber("Elevator kI", 0.0);
         SmartDashboard.putNumber("Elevator kD", 0.1);
-        SmartDashboard.putNumber("maxVel", 2.0);
-        SmartDashboard.putNumber("maxAcc", 1.0);
+        SmartDashboard.putNumber("maxVel", 18.0);
+        SmartDashboard.putNumber("maxAcc", 12.0);
         SmartDashboard.putBoolean("Overwrite Elevator Config", false);
         
         // Initialize encoder and timer.
@@ -71,7 +71,7 @@ public class ElevatorSubsystem extends SubsystemBase {
                                         .positionConversionFactor(encoderFactor)
                                         .velocityConversionFactor(encoderFactor / 60.0);
         // Use lower PID gains in closed-loop config.
-        ClosedLoopConfig closedLoopConfig = new ClosedLoopConfig().p(0.5).i(0.0).d(0.1);
+        ClosedLoopConfig closedLoopConfig = new ClosedLoopConfig().p(1.0).i(0.0).d(0.2);
         SparkFlexConfig leaderConfig = new SparkFlexConfig();
         leaderConfig.apply(encoderConfig);
         leaderConfig.apply(closedLoopConfig);
@@ -98,8 +98,8 @@ public class ElevatorSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         // Update tuning constants from SmartDashboard.
-        double kG = SmartDashboard.getNumber("Gravity FF", .6);
-        double kP = SmartDashboard.getNumber("Elevator kP", 0.7);
+        double kG = SmartDashboard.getNumber("Gravity FF", 1.2);
+        double kP = SmartDashboard.getNumber("Elevator kP", 2);
         double kI = SmartDashboard.getNumber("Elevator kI", 0.0);
         double kD = SmartDashboard.getNumber("Elevator kD", 0.05);
         if (SmartDashboard.getBoolean("Overwrite Elevator Config", false)) {
@@ -131,7 +131,7 @@ public class ElevatorSubsystem extends SubsystemBase {
             SmartDashboard.putNumber("Velocity Error", currentState.velocity - elevatorEncoder.getVelocity());
 
             // Define a velocity feedforward constant.
-            double kV = 12.0;
+            double kV = 16.0;
             double direction = Math.signum(currentState.velocity); // +1 for up, -1 for down, 0 for stationary
             double arbFF = (direction * kG) + (kV * (currentState.velocity / freeSpeed));
             controller.setReference(
@@ -179,8 +179,8 @@ public class ElevatorSubsystem extends SubsystemBase {
             currentState = new TrapezoidProfile.State(getHeight(), elevatorEncoder.getVelocity());
             // Determine direction and adjust constraints
             boolean movingUp = targetHeight > getHeight();
-            double maxVel = movingUp ? 3.0 : 6.0; // Lower max velocity when moving up
-            double maxAcc = movingUp ? 1.5 : 3.0;  // Lower max acceleration when moving up
+            double maxVel = movingUp ? 18 : 18.0; // Lower max velocity when moving up
+            double maxAcc = movingUp ? 12 : 12.0;  // Lower max acceleration when moving up
             motionProfile = new TrapezoidProfile(new TrapezoidProfile.Constraints(maxVel, maxAcc));
             profileTimer.reset();
         }
@@ -193,8 +193,8 @@ public class ElevatorSubsystem extends SubsystemBase {
                 currentState = new TrapezoidProfile.State(getHeight(), elevatorEncoder.getVelocity());
                 motionProfile = new TrapezoidProfile(
                     new TrapezoidProfile.Constraints(
-                        Math.min(SmartDashboard.getNumber("maxVel", 2.0), 2.0), // tune
-                        Math.min(SmartDashboard.getNumber("maxAcc", 1.0), 1.0) // tune
+                        Math.min(SmartDashboard.getNumber("maxVel", 18.0), 18.0), // tune
+                        Math.min(SmartDashboard.getNumber("maxAcc", 12.0), 12.0) // tune
                     )
                 );
                 profileTimer.reset();

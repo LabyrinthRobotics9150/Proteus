@@ -13,7 +13,7 @@ public class IntakeScoreCommand extends Command {
     private final double slowSpeed;
     private final double reverseSpeed;
     private final double reverseRotations;
-    private final double scoringSpeed;
+    public static double scoringSpeed;
     private final double detectionThresholdMm;
 
     private enum State {
@@ -27,7 +27,7 @@ public class IntakeScoreCommand extends Command {
     public IntakeScoreCommand(ElevatorSubsystem elevatorSubsystem, IntakeSubsystem intakeSubsystem) {
         this.elevatorSubsystem = elevatorSubsystem;
         this.intakeSubsystem = intakeSubsystem;
-        this.heightThreshold = 0.4;
+        this.heightThreshold = 0.1;
         this.normalSpeed = 0.1;
         this.slowSpeed = 0.04;
         this.reverseSpeed = 0.05; 
@@ -40,8 +40,8 @@ public class IntakeScoreCommand extends Command {
 
     @Override
     public void initialize() {
-        double elevatorHeight = elevatorSubsystem.getHeight();
-        isScoringMode = (elevatorHeight >= heightThreshold);
+        LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
+        isScoringMode = isObjectDetected(meas);
         
         if (isScoringMode) {
             intakeSubsystem.moveWheel(scoringSpeed);

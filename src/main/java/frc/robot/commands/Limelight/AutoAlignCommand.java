@@ -37,10 +37,10 @@ public class AutoAlignCommand extends Command {
         new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
     
     // Minimum output thresholds (tunable)
-    private static final double MIN_ROTATIONAL_OUTPUT = 0.1; // radians per second
+    private static final double MIN_ROTATIONAL_OUTPUT = 0.001; // radians per second
     private static final double MIN_VELOCITY_OUTPUT = 0.2;    // meters per second
     // Rotation error threshold (degrees) for “good enough” rotation.
-    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = .5;
+    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1.8;
     
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
@@ -75,11 +75,11 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
         if (rightAlign) {
-            yoffset = 2.0;
+            yoffset = -.25;
         } else {
-            yoffset = -2.0;
+            yoffset = .25;
         }
-
+        
     }
     
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, int ID) {
@@ -106,12 +106,15 @@ public class AutoAlignCommand extends Command {
         rotationalPidController.setD(SmartDashboard.getNumber("Rotate D", VisionConstants.ROTATE_D));
         
         try {
-            RawFiducial fiducial;
+            RawFiducial fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
+            /*
             if (tagID == -1) {
                 fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
+                System.out.println("ID");
             } else {
                 fiducial = m_Limelight.getFiducialWithId(tagID);
             }
+            */
             
             // Initialize control outputs.
             double outputX = 0.0;
@@ -120,6 +123,7 @@ public class AutoAlignCommand extends Command {
             
             switch(currentStage) {
                 case ALIGN_ROTATION_1: {
+                    System.out.println("ALIGN Rotate 1");
                     // Stage 1: Rotate until within threshold.
                     double rotationError = fiducial.txnc; // error in degrees
                     if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
@@ -137,6 +141,7 @@ public class AutoAlignCommand extends Command {
                     break;
                 }
                 case ALIGN_Y_1: {
+                    System.out.println("ALIGN Y1");
                     // Stage 2: Correct lateral (Y) alignment.
                     double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
                     double rawYOutput = yPidController.calculate(yError, yoffset);
@@ -148,11 +153,12 @@ public class AutoAlignCommand extends Command {
                     outputRotation = 0.0;
                     
                     if (yPidController.atSetpoint()) {
-                        currentStage = AlignStage.ALIGN_ROTATION_2;
+                        currentStage = AlignStage.DRIVE_X;
                     }
                     break;
                 }
                 case ALIGN_ROTATION_2: {
+                    System.out.println("ALIGN ROTATION 2");
                     // Stage 3: Re-correct rotation.
                     double rotationError = fiducial.txnc;
                     if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
@@ -170,6 +176,7 @@ public class AutoAlignCommand extends Command {
                     break;
                 }
                 case DRIVE_X: {
+                    System.out.println("ALIGN FORWARD");
                     // Stage 4: Drive forward (X).
                     double rawXOutput = xPidController.calculate(fiducial.distToRobot, .6);
                     outputX = rawXOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
@@ -185,6 +192,7 @@ public class AutoAlignCommand extends Command {
                     break;
                 }
                 case FINAL_CORRECT_Y: {
+                    System.out.println("ALIGN Y FINAL");
                     // Stage 5: Final Y correction.
                     double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
                     double rawYOutput = yPidController.calculate(yError, yoffset);

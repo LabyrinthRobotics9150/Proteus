@@ -1,6 +1,7 @@
 package frc.robot.commands.Elevator;
 
 import edu.wpi.first.wpilibj2.command.Command;
+import frc.robot.commands.Intake.IntakeScoreCommand;
 import frc.robot.subsystems.ElevatorSubsystem;
 
 public class MoveElevatorCommand extends Command {
@@ -17,6 +18,7 @@ public class MoveElevatorCommand extends Command {
     public void initialize() {
         System.out.println("Moving elevator to height: " + targetHeight);
         elevator.setHeight(targetHeight);
+        if (targetHeight == .2) {System.out.println("targetheight 2"); IntakeScoreCommand.scoringSpeed = .1;}
     }
 
     @Override

@@ -40,7 +40,7 @@ public class IntakeSubsystem extends SubsystemBase {
         // Initialize LaserCAN settings
         try {
             laserCan.setRangingMode(LaserCan.RangingMode.SHORT);
-            laserCan.setRegionOfInterest(new LaserCan.RegionOfInterest(8, 8, 8, 16));
+            laserCan.setRegionOfInterest(new LaserCan.RegionOfInterest(4, 4, 4, 8));
             laserCan.setTimingBudget(LaserCan.TimingBudget.TIMING_BUDGET_33MS);
         } catch (ConfigurationFailedException e) {
             System.err.println("LaserCAN configuration failed: " + e.getMessage());
