@@ -52,6 +52,9 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, .2);
+    HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, .4);
+    HoldAndReturnCommand ballLevel2 = new HoldAndReturnCommand(m_elevator, .3);
+
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
     WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.2);
     BallCommand ballCommand = new BallCommand(m_intake);
@@ -69,7 +72,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   
       private final Telemetry logger = new Telemetry(MaxSpeed);
       // determines which commands are enabled;
-      boolean TESTING_MODE = true;
+      boolean TESTING_MODE = false;
       // slowmode toggle for command
       public static boolean m_slowMode = false;
 
@@ -143,14 +146,8 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
         m_primaryController.start().and(m_primaryController.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
         */
         // reset the field-centric heading on y
-        m_primaryController.y().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
     
         drivetrain.registerTelemetry(logger::telemeterize);
-
-      // change binding later - slow mode
-    m_primaryController.leftBumper()
-    .whileTrue(Commands.runOnce(() -> m_slowMode = true))
-    .onFalse(Commands.runOnce(() -> m_slowMode = false));
 
     if(TESTING_MODE) {
 
@@ -201,9 +198,17 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     m_primaryController.rightTrigger()
     .whileTrue(intakeScoreCommand);
-
     } else {
     /* PRIMARY */
+
+    // Y - reset gyro
+    m_primaryController.y().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+
+    // change binding later - slow mode
+    m_primaryController.leftTrigger()
+    .whileTrue(Commands.runOnce(() -> m_slowMode = true))
+    .onFalse(Commands.runOnce(() -> m_slowMode = false));
+
 
     // Right Trigger - intake / outtake dependant on where the pivot arm is
     m_primaryController.rightTrigger()
@@ -216,43 +221,47 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     // Lb - Auto-align to left coral spoke
     m_primaryController.leftBumper()
     .whileTrue(alignLeftCommand);
- 
-    /*
-      new Trigger(limelight::hasTarget)
-          .and(m_primaryController.rightBumper())
-          .whileTrue(rb_Command);
-  }  
-     */
-
-    // B - Ball command
-    m_primaryController.b()
-    .whileTrue(ballCommand);
-    }
 
 
     /* SECONDARY */
 
     // elevator heights
 
-    // A - Level 4
-    m_secondaryController.a()
+    // Y - Level 4
+    m_secondaryController.y()
     .whileTrue(level4Command);
 
-    // B - Level 3
-    m_secondaryController.b()
+    // X - Level 3
+    m_secondaryController.x()
     .whileTrue(level3Command);
 
-    // X - Level 2
-    m_secondaryController.x()
+    // A - Level 2
+    m_secondaryController.a()
     .whileTrue(level2Command);
 
-    // Y - Level 1
-    m_secondaryController.y()
+    // B - Level 1
+    m_secondaryController.b()
     .whileTrue(level1Command);
 
-    // RT - intake in
-    m_secondaryController.rightTrigger()
-    .whileTrue(wheelMoveCommand);
+    // Ball related commands
+
+    // B - Ball command
+    m_secondaryController.leftTrigger()
+    .whileTrue(ballCommand);
+
+    /*
+     * While right trigger is held, redefine the 
+     * elevator positions to ball descore commands
+     */
+    m_secondaryController.x() 
+    .and(m_secondaryController.leftTrigger())
+    .whileTrue(ballLevel2);
+
+    m_secondaryController.b()
+    .and(m_secondaryController.rightTrigger())
+    .whileTrue(ballLevel1);
+
+    }
 }
 
     public Command getAutonomousCommand() {

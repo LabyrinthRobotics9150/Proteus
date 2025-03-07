@@ -34,7 +34,6 @@ public class AutoAlignCommand extends Command {
     private static final PIDControllerConfigurable yPidController = 
         new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
     
-    // Rotation error threshold (in degrees) for “good enough” rotation.
     private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1.0;
     
     private static final SwerveRequest.RobotCentric alignRequest = 

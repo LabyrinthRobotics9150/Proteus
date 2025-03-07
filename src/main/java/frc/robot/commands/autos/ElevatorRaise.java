@@ -7,7 +7,6 @@ import frc.robot.subsystems.ElevatorSubsystem;
 public class ElevatorRaise extends Command {
     private final ElevatorSubsystem elevator;
     private final double targetHeight;
-    private static final double HEIGHT_TOLERANCE = 0.02; // meters
 
     public ElevatorRaise(ElevatorSubsystem elevator, double height) {
         this.elevator = elevator;

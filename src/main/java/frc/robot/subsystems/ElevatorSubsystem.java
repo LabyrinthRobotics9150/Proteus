@@ -45,14 +45,27 @@ public class ElevatorSubsystem extends SubsystemBase {
     private TrapezoidProfile.State currentState = new TrapezoidProfile.State();
     private double previousPosition;
 
+    // Consolidate max velocity & acceleration
+    private double maxVel = 24.0;
+    private double maxAccl = 16.0;
+
+    // Same with P, I, D, and gF
+    private double kP = 2.0;
+    private double kI = 0;
+    private double kD = 0.1;
+    private double gF = 1.0;
+    private double kV = 16.0;
+
+
+
     public ElevatorSubsystem() {
         // Set SmartDashboard default tuning values.
-        SmartDashboard.putNumber("Gravity FF", 1.2);   // kG: Voltage to hold position.
-        SmartDashboard.putNumber("Elevator kP", 0.5);
-        SmartDashboard.putNumber("Elevator kI", 0.0);
-        SmartDashboard.putNumber("Elevator kD", 0.1);
-        SmartDashboard.putNumber("maxVel", 18.0);
-        SmartDashboard.putNumber("maxAcc", 12.0);
+        SmartDashboard.putNumber("Gravity FF", gF);   // kG: Voltage to hold position.
+        SmartDashboard.putNumber("Elevator kP", kP);
+        SmartDashboard.putNumber("Elevator kI", kI);
+        SmartDashboard.putNumber("Elevator kD", kD);
+        SmartDashboard.putNumber("maxVel", maxVel);
+        SmartDashboard.putNumber("maxAcc", maxAccl);
         SmartDashboard.putBoolean("Overwrite Elevator Config", false);
         
         // Initialize encoder and timer.
@@ -64,8 +77,7 @@ public class ElevatorSubsystem extends SubsystemBase {
         EncoderConfig encoderConfig = new EncoderConfig()
                                         .positionConversionFactor(encoderFactor)
                                         .velocityConversionFactor(encoderFactor / 60.0);
-        // Use lower PID gains in closed-loop config.
-        ClosedLoopConfig closedLoopConfig = new ClosedLoopConfig().p(1.0).i(0.0).d(0.2);
+        ClosedLoopConfig closedLoopConfig = new ClosedLoopConfig().p(kP).i(kI).d(kD);
         SparkFlexConfig leaderConfig = new SparkFlexConfig();
         leaderConfig.apply(encoderConfig);
         leaderConfig.apply(closedLoopConfig);
@@ -91,11 +103,6 @@ public class ElevatorSubsystem extends SubsystemBase {
 
     @Override
     public void periodic() {
-        // Update tuning constants from SmartDashboard.
-        double kG = SmartDashboard.getNumber("Gravity FF", 1.2);
-        double kP = SmartDashboard.getNumber("Elevator kP", 2);
-        double kI = SmartDashboard.getNumber("Elevator kI", 0.0);
-        double kD = SmartDashboard.getNumber("Elevator kD", 0.05);
         if (SmartDashboard.getBoolean("Overwrite Elevator Config", false)) {
             ClosedLoopConfig closedLoopConfig = new ClosedLoopConfig().p(kP).i(kI).d(kD);
             SparkFlexConfig newLeaderConfig = new SparkFlexConfig();
@@ -124,10 +131,8 @@ public class ElevatorSubsystem extends SubsystemBase {
             SmartDashboard.putNumber("Position Error", currentState.position - elevatorEncoder.getPosition());
             SmartDashboard.putNumber("Velocity Error", currentState.velocity - elevatorEncoder.getVelocity());
 
-            // Define a velocity feedforward constant.
-            double kV = 16.0;
             double direction = Math.signum(currentState.velocity); // +1 for up, -1 for down, 0 for stationary
-            double arbFF = (direction * kG) + (kV * (currentState.velocity / freeSpeed));
+            double arbFF = (direction * gF) + (kV * (currentState.velocity / freeSpeed));
             controller.setReference(
                 currentState.position,
                 SparkBase.ControlType.kPosition,
@@ -177,10 +182,7 @@ public class ElevatorSubsystem extends SubsystemBase {
         targetState = new TrapezoidProfile.State(targetHeight, 0);
         currentState = new TrapezoidProfile.State(getHeight(), elevatorEncoder.getVelocity());
         // Determine direction and adjust constraints
-        boolean movingUp = targetHeight > getHeight();
-        double maxVel = movingUp ? 18 : 18.0; // Adjust max velocity if needed.
-        double maxAcc = movingUp ? 12 : 12.0;  // Adjust max acceleration if needed.
-        motionProfile = new TrapezoidProfile(new TrapezoidProfile.Constraints(maxVel, maxAcc));
+        motionProfile = new TrapezoidProfile(new TrapezoidProfile.Constraints(maxVel, maxAccl));
         profileTimer.reset();
     }
 
@@ -191,15 +193,15 @@ public class ElevatorSubsystem extends SubsystemBase {
                 currentState = new TrapezoidProfile.State(getHeight(), elevatorEncoder.getVelocity());
                 motionProfile = new TrapezoidProfile(
                     new TrapezoidProfile.Constraints(
-                        Math.min(SmartDashboard.getNumber("maxVel", 18.0), 18.0), // tune
-                        Math.min(SmartDashboard.getNumber("maxAcc", 12.0), 12.0) // tune
+                        Math.min(SmartDashboard.getNumber("maxVel", maxVel), maxVel),
+                        Math.min(SmartDashboard.getNumber("maxAcc", maxAccl), maxAccl)
                     )
                 );
                 profileTimer.reset();
             },
             () -> {},
             interrupted -> {},
-            () -> Math.abs(getHeight() - targetHeight) < 0.01, // tune
+            () -> Math.abs(getHeight() - targetHeight) < 0.01,
             this
         );
     }
