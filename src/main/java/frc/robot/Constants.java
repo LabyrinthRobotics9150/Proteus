@@ -56,7 +56,7 @@ public final class Constants {
     public static final Double MOVE_I = .00;
     public static final Double MOVE_D = .0006;
 
-    public static final double STRAFE_P = 0.4;
+    public static final double STRAFE_P = 0.8;
     public static final double STRAFE_I = 0.0;
     public static final double STRAFE_D = 0.0006;
 

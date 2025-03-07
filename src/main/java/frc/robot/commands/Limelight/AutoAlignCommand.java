@@ -79,7 +79,7 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
         // For right alignment, set a small positive offset; for left alignment, a small negative offset.
-        yoffset = rightAlign ? 0.1 : -0.1;
+        yoffset = rightAlign ? -.5 : .5;
     }
     
     @Override
@@ -131,7 +131,7 @@ public class AutoAlignCommand extends Command {
                 // Lateral (Y) alignment: Calculate lateral error.
                 // Using distance * sin(angle) approximates the lateral offset.
                 double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-                if (Math.abs(lateralError - yoffset) < 0.05) { // within 5cm tolerance
+                if (Math.abs(lateralError - yoffset) < 0.2) { // within 5cm tolerance
                     outputY = 0.0;
                     currentStage = AlignStage.ALIGN_ROTATION;
                 } else {
@@ -154,7 +154,7 @@ public class AutoAlignCommand extends Command {
             }
             case DRIVE_X: {
                 // Drive forward/backward to achieve the desired distance.
-                double desiredDistance = 0.6;
+                double desiredDistance = 0.5;
                 if (Math.abs(fiducial.distToRobot - desiredDistance) < 0.05) { // within 5cm tolerance
                     outputX = 0.0;
                 } else {
