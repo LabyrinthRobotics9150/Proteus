@@ -67,7 +67,8 @@ public class AutoAlignCommand extends Command {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
-        yoffset = rightAlign ? -0.25 : 0.25;
+        // change yoffset depending on aligncommand mode
+        yoffset = rightAlign ? 0.01 : -0.01;
     }
     
     @Override
