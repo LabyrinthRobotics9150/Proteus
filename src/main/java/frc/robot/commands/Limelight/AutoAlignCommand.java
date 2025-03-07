@@ -1,12 +1,10 @@
 package frc.robot.commands.Limelight;
 
-import static edu.wpi.first.units.Units.*;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.Constants.VisionConstants;
-import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.LimelightHelpers.RawFiducial;
@@ -25,10 +23,10 @@ class PIDControllerConfigurable extends PIDController {
 }
 
 public class AutoAlignCommand extends Command {
-    private final CommandSwerveDrivetrain m_drivetrain;
-    private final VisionSubsystem m_Limelight;
+    protected final CommandSwerveDrivetrain m_drivetrain;
+    protected final VisionSubsystem m_Limelight;
     
-    // PID controllers initialized once.
+    // PID controllers for rotation, forward (X), and lateral (Y) alignment.
     private static PIDControllerConfigurable rotationalPidController = 
         new PIDControllerConfigurable(VisionConstants.ROTATE_P, VisionConstants.ROTATE_I, VisionConstants.ROTATE_D, VisionConstants.TOLERANCE);
     private static final PIDControllerConfigurable xPidController = 
@@ -36,10 +34,7 @@ public class AutoAlignCommand extends Command {
     private static final PIDControllerConfigurable yPidController = 
         new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
     
-    // Minimum output thresholds (tunable)
-    private static final double MIN_ROTATIONAL_OUTPUT = 0.001; // radians per second
-    private static final double MIN_VELOCITY_OUTPUT = 0.02;    // meters per second
-    // Rotation error threshold (degrees) for “good enough” rotation.
+    // Rotation error threshold (in degrees) for “good enough” rotation.
     private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1.0;
     
     private static final SwerveRequest.RobotCentric alignRequest = 
@@ -48,38 +43,30 @@ public class AutoAlignCommand extends Command {
     private static int tagID = -1;
     private double yoffset;
     
-    // State machine for sequential control.
+    // Allowed AprilTag IDs for auto-alignment.
+    private static final int[] ALLOWED_TAG_IDS = {17, 18, 19, 20, 21, 22, 6, 7, 8, 9, 10, 11};
+    
+    // Simplified state machine for alignment.
     private enum AlignStage {
-        ALIGN_ROTATION_1,
-        ALIGN_Y_1,
-        ALIGN_ROTATION_2,
-        DRIVE_X,
-        FINAL_CORRECT_Y,
-        FINAL_CORRECT_ROTATION
+        ALIGN_ROTATION,
+        ALIGN_Y,
+        DRIVE_X
     }
     private AlignStage currentStage;
     
-    public double rotationalRate = 0;
-    public double velocityX = 0;
-    public double velocityY = 0;
-    // align to closest apriltag centrally
+    // Constructor for central alignment.
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         yoffset = 0;
         addRequirements(m_Limelight);
     }
-    // align to closest apriltag left/right
-    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, Boolean rightAlign) {
+    // Constructor for left/right alignment (adjusts lateral setpoint via yoffset).
+    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, boolean rightAlign) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
-        if (rightAlign) {
-            yoffset = -.25;
-        } else {
-            yoffset = .25;
-        }
-        
+        yoffset = rightAlign ? -0.25 : 0.25;
     }
     
     @Override
@@ -87,111 +74,108 @@ public class AutoAlignCommand extends Command {
         rotationalPidController.reset();
         xPidController.reset();
         yPidController.reset();
-        tagID = m_Limelight.getClosestFiducial().id;
-        currentStage = AlignStage.ALIGN_ROTATION_1;
+        try {
+            tagID = m_Limelight.getClosestFiducial().id;
+        } catch (VisionSubsystem.NoSuchTargetException e) {
+            tagID = -1;
+        }
+        currentStage = AlignStage.ALIGN_ROTATION;
     }
     
     @Override
     public void execute() {
-        // Update rotational PID parameters from SmartDashboard.
-        rotationalPidController.setP(SmartDashboard.getNumber("Rotate P", VisionConstants.ROTATE_P));
-        rotationalPidController.setD(SmartDashboard.getNumber("Rotate D", VisionConstants.ROTATE_D));
-        
+        RawFiducial fiducial;
         try {
-            RawFiducial fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
-            if (tagID == -1) {
-                fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
-                System.out.println("ID");
-            } else {
+            if (tagID != -1) {
                 fiducial = m_Limelight.getFiducialWithId(tagID);
+            } else {
+                fiducial = m_Limelight.getClosestFiducial();
+                tagID = fiducial.id;
             }
-            
-            // Initialize control outputs.
-            double outputX = 0.0;
-            double outputY = 0.0;
-            double outputRotation = 0.0;
-            
-            switch(currentStage) {
-                case ALIGN_ROTATION_1: {
-                    // Stage 1: Rotate until within threshold.
-                    double rotationError = fiducial.txnc; // error in degrees
-                    if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
-                        outputRotation = 0.0;
-                        currentStage = AlignStage.ALIGN_Y_1;
-                    } else {
-                        double rawRotOutput = rotationalPidController.calculate(rotationError, 0.0);
-                        outputRotation = rawRotOutput * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -2;
-                        if (Math.abs(outputRotation) < MIN_ROTATIONAL_OUTPUT) {
-                            outputRotation = Math.copySign(MIN_ROTATIONAL_OUTPUT, outputRotation);
-                        }
-                    }
-                    outputX = 0.0;
-                    outputY = 0.0;
-                    break;
-                }
-                case ALIGN_Y_1: {
-                    // Stage 2: Correct lateral (Y) alignment.
-                    double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-                    double rawYOutput = yPidController.calculate(yError, yoffset);
-                    outputY = rawYOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
-                    if (Math.abs(outputY) < MIN_VELOCITY_OUTPUT) {
-                        outputY = Math.copySign(MIN_VELOCITY_OUTPUT, outputY);
-                    }
-                    outputX = 0.0;
-                    outputRotation = 0.0;
-                    
-                    if (yPidController.atSetpoint()) {
-                        currentStage = AlignStage.DRIVE_X;
-                    }
-                    break;
-                }
-                case DRIVE_X: {
-                    // Stage 3: Drive forward (X).
-                    double rawXOutput = xPidController.calculate(fiducial.distToRobot, .6);
-                    outputX = rawXOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
-                    if (Math.abs(outputX) < MIN_VELOCITY_OUTPUT) {
-                        outputX = Math.copySign(MIN_VELOCITY_OUTPUT, outputX);
-                    }
-                    outputY = 0.0;
-                    outputRotation = 0.0;
-                    
-                    if (xPidController.atSetpoint()) {
-                        currentStage = AlignStage.FINAL_CORRECT_Y;
-                    }
+            boolean allowed = false;
+            for (int id : ALLOWED_TAG_IDS) {
+                if (fiducial.id == id) {
+                    allowed = true;
                     break;
                 }
             }
-            
-            m_drivetrain.setControl(
-                alignRequest
-                    .withRotationalRate(-outputRotation)
-                    .withVelocityX(-outputX)
-                    .withVelocityY(outputY)
-            );
-            
-            SmartDashboard.putString("Align Stage", currentStage.name());
-            SmartDashboard.putNumber("txnc", fiducial.txnc);
-            SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
-            SmartDashboard.putNumber("rotationalRate", outputRotation);
-            SmartDashboard.putNumber("velocityX", outputX);
-            SmartDashboard.putNumber("velocityY", outputY);
-            
+            if (!allowed) {
+                m_drivetrain.setControl(idleRequest);
+                return;
+            }
         } catch (VisionSubsystem.NoSuchTargetException e) {
-            System.out.println("No AprilTag found");
             m_drivetrain.setControl(idleRequest);
+            return;
         }
+        
+        double outputX = 0.0;
+        double outputY = 0.0;
+        double outputRotation = 0.0;
+        
+        switch (currentStage) {
+            case ALIGN_ROTATION: {
+                // Rotate until the horizontal error is within threshold.
+                double rotationError = fiducial.txnc; // in degrees
+                if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
+                    outputRotation = 0.0;
+                    currentStage = AlignStage.ALIGN_Y;
+                } else {
+                    // Use the PID controller and invert the output so that a positive error rotates the robot in the correct direction.
+                    outputRotation = -rotationalPidController.calculate(rotationError, 0.0);
+                }
+                break;
+            }
+            case ALIGN_Y: {
+                // Lateral (Y) error based on distance and horizontal offset.
+                double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                if (Math.abs(yError - yoffset) < 0.05) { // within 5cm tolerance
+                    outputY = 0.0;
+                    currentStage = AlignStage.DRIVE_X;
+                } else {
+                    outputY = -yPidController.calculate(yError, yoffset);
+                }
+                break;
+            }
+            case DRIVE_X: {
+                // Drive forward/backward to reach a desired distance (e.g., 0.6 meters from the target).
+                double desiredDistance = 0.6;
+                if (Math.abs(fiducial.distToRobot - desiredDistance) < 0.05) { // within 5cm tolerance
+                    outputX = 0.0;
+                } else {
+                    outputX = xPidController.calculate(fiducial.distToRobot, desiredDistance);
+                }
+                // If the rotation error becomes significant again, return to rotation alignment.
+                if (Math.abs(fiducial.txnc) > ROTATION_ERROR_THRESHOLD_DEGREES) {
+                    currentStage = AlignStage.ALIGN_ROTATION;
+                }
+                break;
+            }
+        }
+        
+        // Apply the computed outputs to the drivetrain.
+        m_drivetrain.setControl(
+            alignRequest
+                .withRotationalRate(outputRotation)
+                .withVelocityX(outputX)
+                .withVelocityY(outputY)
+        );
+        
+        // Publish status information for debugging.
+        SmartDashboard.putString("Align Stage", currentStage.name());
+        SmartDashboard.putNumber("txnc", fiducial.txnc);
+        SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
+        SmartDashboard.putNumber("rotationalRate", outputRotation);
+        SmartDashboard.putNumber("velocityX", outputX);
+        SmartDashboard.putNumber("velocityY", outputY);
     }
     
     @Override
     public boolean isFinished() {
-        if (xPidController.atSetpoint() && rotationalPidController.atSetpoint() && yPidController.atSetpoint()) {
-            return true;
-        }
-        return false;
+        return xPidController.atSetpoint() && rotationalPidController.atSetpoint() && yPidController.atSetpoint();
     }
     
     @Override
     public void end(boolean interrupted) {
-        m_drivetrain.applyRequest(() -> idleRequest);
+        m_drivetrain.setControl(idleRequest);
     }
 }

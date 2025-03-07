@@ -35,6 +35,10 @@ public final class Constants {
     public static final double LEFT_ALIGN_TX_SETPOINT = -0.2;
     public static final double RIGHT_ALIGN_TX_SETPOINT = 0.2;
     public static final int[] ALLOWED_TAG_IDS = {0,1,5,8,9,10,11,12};
+
+    // autoalign constants
+    private static final int[] ALLOWED_AUTOALIGN_TAG_IDS = {17, 18, 19, 20, 21, 22, 6, 7, 8, 9, 10, 11};
+
     // Camera pose constants
     public static final double CAMERA_X_OFFSET = 0.3556;
     public static final double CAMERA_Y_OFFSET = 0.1016;

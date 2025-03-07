@@ -19,6 +19,7 @@ import frc.robot.commands.Intake.BallCommand;
 import frc.robot.commands.Intake.IntakeScoreCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
 import frc.robot.commands.Limelight.AutoAlignCommand;
+import frc.robot.commands.autos.AutonomousSequence;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
@@ -255,7 +256,8 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 }
 
     public Command getAutonomousCommand() {
-        return Commands.print("No autonomous command configured");
+      // incorporate the current autonomous command
+        return new AutonomousSequence(drivetrain, limelight, m_elevator, m_intake);
     }
 
 }

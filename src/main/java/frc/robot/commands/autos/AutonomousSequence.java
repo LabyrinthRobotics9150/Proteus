@@ -1,140 +1,125 @@
 package frc.robot.commands.autos;
 
+import edu.wpi.first.wpilibj2.command.*;
+import frc.robot.commands.Limelight.AutoAlignCommand;
+import frc.robot.commands.autos.ElevatorRaise;
+import frc.robot.commands.autos.ShootCommand;
+import frc.robot.subsystems.CommandSwerveDrivetrain;
+import frc.robot.subsystems.ElevatorSubsystem;
+import frc.robot.subsystems.IntakeSubsystem;
+import frc.robot.subsystems.VisionSubsystem;
+import frc.robot.subsystems.LimelightHelpers.RawFiducial;
 import com.ctre.phoenix6.swerve.SwerveRequest;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.wpilibj2.command.*;
-import frc.robot.commands.Limelight.AutoAlignCommand;
-import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.subsystems.ElevatorSubsystem;
-import frc.robot.subsystems.VisionSubsystem;
-//import frc.robot.commands.autos.ShootCommand;
+import java.util.function.BooleanSupplier;
 
 public class AutonomousSequence extends SequentialCommandGroup {
 
-    /*
-    private final CommandSwerveDrivetrain drivetrain;
-    private final VisionSubsystem limelight;
-    private final ElevatorSubsystem m_elevator;
     private Pose2d initialPose;
-
-    public AutonomousSequence(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, ElevatorSubsystem elevator) {
-        this.drivetrain = drivetrain;
-        this.limelight = limelight;
-        this.m_elevator = elevator;
-
+    
+    /**
+     * Constructs the autonomous sequence.
+     *
+     * @param drivetrain the swerve drivetrain subsystem
+     * @param limelight  the vision subsystem
+     * @param elevator   the elevator subsystem
+     * @param intake     the intake subsystem
+     */
+    public AutonomousSequence(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, ElevatorSubsystem elevator, IntakeSubsystem intake) {
         addCommands(
-            // Capture initial pose
+            // (1) Capture the initial robot pose.
             new InstantCommand(() -> initialPose = drivetrain.getState().Pose),
-            
-            // Alignment phase with proper conditional structure
-            new SequentialCommandGroup(
-                new ParallelRaceGroup(
-                    new AutoAlignCommand(drivetrain, limelight),
-                    new WaitCommand(2)
+
+            // (2) Loop until a valid target is aligned.
+            new RepeatUntilCommand(
+                new SequentialCommandGroup(
+                    new AutoAlignCommand(drivetrain, limelight).withTimeout(2),
+                    new ConditionalCommand(
+                        // If not aligned, run a search pattern: drive forward then rotate.
+                        new SequentialCommandGroup(
+                            new DriveForwardCommand(drivetrain, 1.0).withTimeout(2),
+                            new RotateCommand(drivetrain, 45).withTimeout(2)
+                        ),
+                        // Otherwise do nothing.
+                        new InstantCommand(() -> {}),
+                        () -> !isAligned(limelight)
+                    )
                 ),
-                new ConditionalCommand(
-                    new SearchPatternCommand(drivetrain)
-                        .until(() -> limelight.hasTarget())
-                        .andThen(new AutoAlignCommand(drivetrain, limelight)),
-                    new InstantCommand(() -> {}),  // Empty command when no search needed
-                    () -> !limelight.hasTarget()
-                ),
-                new WaitCommand(4)
+                () -> isAligned(limelight)
             ),
-            
-            // Elevator and shooting sequence
-            new ElevatorRaise(m_elevator, 3.8)
-                .withTimeout(3)
-                .andThen(new WaitCommand(0.5)),
-            
-            new ParallelCommandGroup(
-                new ShootCommand().withTimeout(2),
-                new ElevatorRaise(m_elevator, 3.8)
-            ).withTimeout(2.5),
-            
-            new ElevatorRaise(m_elevator, 0)
-                .withTimeout(2)
-                .andThen(new WaitCommand(0.25)),
-            
-            // Return to initial position
-            new FollowPathCommand(drivetrain, initialPose)
-                .withTimeout(5)
+
+            // (3) Hold alignment using left‑alignment.
+            new AutoAlignCommand(drivetrain, limelight, false).withTimeout(2),
+
+            // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
+            new ElevatorRaise(elevator, 3.9).withTimeout(3).andThen(new WaitCommand(0.5)),
+
+            // (5) Run the shoot command (spin intake wheels at 0.5 speed) for 2 seconds.
+            new ShootCommand(intake, 0.5).withTimeout(2),
+
+            // (6) Lower the elevator back to 0.
+            new ElevatorRaise(elevator, 0).withTimeout(2).andThen(new WaitCommand(0.25)),
+
+            // (7) Return to the initial starting pose.
+            new FollowPathCommand(drivetrain, initialPose).withTimeout(5)
         );
     }
-
-    // Improved SearchPatternCommand
-    private static class SearchPatternCommand extends Command {
-        private final CommandSwerveDrivetrain drivetrain;
-        private Command currentCommand;
-        private int step = 0;
-        private static final double DRIVE_DISTANCE = 1.5;
-        private static final double ROTATION_ANGLE = 60;
-
-        public SearchPatternCommand(CommandSwerveDrivetrain drivetrain) {
-            this.drivetrain = drivetrain;
-            addRequirements(drivetrain);
-        }
-
-        @Override
-        public void initialize() {
-            step = 0;
-            scheduleNextCommand();
-        }
-
-        private void scheduleNextCommand() {
-            if (currentCommand != null) {
-                currentCommand.cancel();
-            }
-
-            switch (step % 4) {
-                case 0:
-                    currentCommand = new DriveForwardCommand(drivetrain, DRIVE_DISTANCE)
-                        .withTimeout(2);
-                    break;
-                case 1:
-                    currentCommand = new RotateCommand(drivetrain, ROTATION_ANGLE)
-                        .withTimeout(1.5);
-                    break;
-                case 2:
-                    currentCommand = new DriveForwardCommand(drivetrain, DRIVE_DISTANCE)
-                        .withTimeout(2);
-                    break;
-                case 3:
-                    currentCommand = new RotateCommand(drivetrain, -ROTATION_ANGLE*1.5)
-                        .withTimeout(2);
-                    break;
-            }
-            currentCommand.schedule();
-            step++;
-        }
-
-        @Override
-        public void execute() {
-            if (currentCommand.isFinished()) {
-                scheduleNextCommand();
-            }
-        }
-
-        @Override
-        public boolean isFinished() {
+    
+    // Helper method: returns true if the vision is aligned (using a threshold on txnc).
+    private static boolean isAligned(VisionSubsystem limelight) {
+        try {
+            RawFiducial fiducial = limelight.getClosestFiducial();
+            return Math.abs(fiducial.txnc) < 1.0; // alignment threshold (degrees)
+        } catch (VisionSubsystem.NoSuchTargetException e) {
             return false;
         }
-
+    }
+    
+    // --- Custom RepeatUntilCommand implementation ---
+    private static class RepeatUntilCommand extends Command {
+        private final Command command;
+        private final BooleanSupplier condition;
+        
+        public RepeatUntilCommand(Command command, BooleanSupplier condition) {
+            this.command = command;
+            this.condition = condition;
+            addRequirements(command.getRequirements().toArray(new edu.wpi.first.wpilibj2.command.Subsystem[0]));
+        }
+        
+        @Override
+        public void initialize() {
+            command.initialize();
+        }
+        
+        @Override
+        public void execute() {
+            if (command.isFinished()) {
+                command.end(false);
+                command.initialize();
+            } else {
+                command.execute();
+            }
+        }
+        
+        @Override
+        public boolean isFinished() {
+            return condition.getAsBoolean();
+        }
+        
         @Override
         public void end(boolean interrupted) {
-            currentCommand.cancel();
-            drivetrain.setControl(new SwerveRequest.Idle());
+            command.end(interrupted);
         }
     }
-
-    // Enhanced DriveForwardCommand with velocity control
+    
+    // --- Inner classes for search-pattern commands ---
+    
     private static class DriveForwardCommand extends Command {
         private final CommandSwerveDrivetrain drivetrain;
+        private final Pose2d targetPose;
         private final PIDController xController = new PIDController(0.3, 0, 0.02);
         private final PIDController yController = new PIDController(0.3, 0, 0.02);
-        private final Pose2d targetPose;
 
         public DriveForwardCommand(CommandSwerveDrivetrain drivetrain, double meters) {
             this.drivetrain = drivetrain;
@@ -145,7 +130,6 @@ public class AutonomousSequence extends SequentialCommandGroup {
                 current.getRotation()
             );
             addRequirements(drivetrain);
-            
             xController.setTolerance(0.05);
             yController.setTolerance(0.05);
         }
@@ -155,11 +139,10 @@ public class AutonomousSequence extends SequentialCommandGroup {
             Pose2d current = drivetrain.getState().Pose;
             double xOutput = xController.calculate(current.getX(), targetPose.getX());
             double yOutput = yController.calculate(current.getY(), targetPose.getY());
-            
             drivetrain.setControl(new SwerveRequest.FieldCentric()
-                .withVelocityX(xOutput)
-                .withVelocityY(yOutput)
-                .withRotationalRate(0));
+                    .withVelocityX(xOutput)
+                    .withVelocityY(yOutput)
+                    .withRotationalRate(0));
         }
 
         @Override
@@ -173,7 +156,7 @@ public class AutonomousSequence extends SequentialCommandGroup {
         }
     }
 
-    // Enhanced RotateCommand with better PID
+    // Rotates the robot by a given number of degrees.
     private static class RotateCommand extends Command {
         private final CommandSwerveDrivetrain drivetrain;
         private final PIDController rotationController = new PIDController(0.05, 0, 0.005);
@@ -192,9 +175,9 @@ public class AutonomousSequence extends SequentialCommandGroup {
             double currentDegrees = drivetrain.getState().Pose.getRotation().getDegrees();
             double output = rotationController.calculate(currentDegrees, targetDegrees);
             drivetrain.setControl(new SwerveRequest.FieldCentric()
-                .withVelocityX(0)
-                .withVelocityY(0)
-                .withRotationalRate(output));
+                    .withVelocityX(0)
+                    .withVelocityY(0)
+                    .withRotationalRate(output));
         }
 
         @Override
@@ -207,8 +190,8 @@ public class AutonomousSequence extends SequentialCommandGroup {
             drivetrain.setControl(new SwerveRequest.Idle());
         }
     }
-
-    // Improved FollowPathCommand with trajectory-like control
+    
+    // Follows a trajectory-like path back to a target pose.
     private static class FollowPathCommand extends Command {
         private final CommandSwerveDrivetrain drivetrain;
         private final Pose2d targetPose;
@@ -221,7 +204,6 @@ public class AutonomousSequence extends SequentialCommandGroup {
             this.targetPose = targetPose;
             rotationController.enableContinuousInput(-180, 180);
             addRequirements(drivetrain);
-            
             xController.setTolerance(0.1);
             yController.setTolerance(0.1);
             rotationController.setTolerance(2.0);
@@ -236,18 +218,15 @@ public class AutonomousSequence extends SequentialCommandGroup {
                 current.getRotation().getDegrees(), 
                 targetPose.getRotation().getDegrees()
             );
-            
             drivetrain.setControl(new SwerveRequest.FieldCentric()
-                .withVelocityX(xOutput)
-                .withVelocityY(yOutput)
-                .withRotationalRate(rotationOutput));
+                    .withVelocityX(xOutput)
+                    .withVelocityY(yOutput)
+                    .withRotationalRate(rotationOutput));
         }
 
         @Override
         public boolean isFinished() {
-            return xController.atSetpoint() && 
-                   yController.atSetpoint() && 
-                   rotationController.atSetpoint();
+            return xController.atSetpoint() && yController.atSetpoint() && rotationController.atSetpoint();
         }
 
         @Override
@@ -255,5 +234,4 @@ public class AutonomousSequence extends SequentialCommandGroup {
             drivetrain.setControl(new SwerveRequest.Idle());
         }
     }
-        */
 }
