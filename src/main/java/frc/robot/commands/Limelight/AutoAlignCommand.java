@@ -82,20 +82,12 @@ public class AutoAlignCommand extends Command {
         
     }
     
-    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, int ID) {
-        this.m_drivetrain = drivetrain;
-        this.m_Limelight = limelight;
-        if (ID < 0) throw new IllegalArgumentException("AprilTag ID cannot be negative");
-        tagID = ID;
-        yoffset = 0;
-        addRequirements(m_Limelight);
-    }
-    
     @Override
     public void initialize() {
         rotationalPidController.reset();
         xPidController.reset();
         yPidController.reset();
+        tagID = m_Limelight.getClosestFiducial().id;
         currentStage = AlignStage.ALIGN_ROTATION_1;
     }
     
@@ -107,14 +99,12 @@ public class AutoAlignCommand extends Command {
         
         try {
             RawFiducial fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
-            /*
             if (tagID == -1) {
                 fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
                 System.out.println("ID");
             } else {
                 fiducial = m_Limelight.getFiducialWithId(tagID);
             }
-            */
             
             // Initialize control outputs.
             double outputX = 0.0;
@@ -123,7 +113,6 @@ public class AutoAlignCommand extends Command {
             
             switch(currentStage) {
                 case ALIGN_ROTATION_1: {
-                    System.out.println("ALIGN Rotate 1");
                     // Stage 1: Rotate until within threshold.
                     double rotationError = fiducial.txnc; // error in degrees
                     if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
@@ -141,7 +130,6 @@ public class AutoAlignCommand extends Command {
                     break;
                 }
                 case ALIGN_Y_1: {
-                    System.out.println("ALIGN Y1");
                     // Stage 2: Correct lateral (Y) alignment.
                     double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
                     double rawYOutput = yPidController.calculate(yError, yoffset);
@@ -158,7 +146,6 @@ public class AutoAlignCommand extends Command {
                     break;
                 }
                 case ALIGN_ROTATION_2: {
-                    System.out.println("ALIGN ROTATION 2");
                     // Stage 3: Re-correct rotation.
                     double rotationError = fiducial.txnc;
                     if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
@@ -189,39 +176,6 @@ public class AutoAlignCommand extends Command {
                     if (xPidController.atSetpoint()) {
                         currentStage = AlignStage.FINAL_CORRECT_Y;
                     }
-                    break;
-                }
-                case FINAL_CORRECT_Y: {
-                    System.out.println("ALIGN Y FINAL");
-                    // Stage 5: Final Y correction.
-                    double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-                    double rawYOutput = yPidController.calculate(yError, yoffset);
-                    outputY = rawYOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
-                    if (Math.abs(outputY) < MIN_VELOCITY_OUTPUT) {
-                        outputY = Math.copySign(MIN_VELOCITY_OUTPUT, outputY);
-                    }
-                    outputX = 0.0;
-                    outputRotation = 0.0;
-                    
-                    if (yPidController.atSetpoint()) {
-                        currentStage = AlignStage.FINAL_CORRECT_ROTATION;
-                    }
-                    break;
-                }
-                case FINAL_CORRECT_ROTATION: {
-                    // Stage 6: Final rotation correction.
-                    double rotationError = fiducial.txnc;
-                    if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
-                        outputRotation = 0.0;
-                    } else {
-                        double rawRotOutput = rotationalPidController.calculate(rotationError, 0.0);
-                        outputRotation = rawRotOutput * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -2;
-                        if (Math.abs(outputRotation) < MIN_ROTATIONAL_OUTPUT) {
-                            outputRotation = Math.copySign(MIN_ROTATIONAL_OUTPUT, outputRotation);
-                        }
-                    }
-                    outputX = 0.0;
-                    outputY = 0.0;
                     break;
                 }
             }
