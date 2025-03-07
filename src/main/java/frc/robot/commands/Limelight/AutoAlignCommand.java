@@ -4,7 +4,6 @@ import com.ctre.phoenix6.swerve.SwerveRequest;
 import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.Constants.VisionConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.LimelightHelpers.RawFiducial;
@@ -26,14 +25,17 @@ public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
     
-    // PID controllers for rotation, forward (X), and lateral (Y) alignment.
+    // Updated PID controllers for faster and smoother movement.
+    // Rotational controller: increased P and D gains with a looser tolerance to reduce overshoot.
     private static PIDControllerConfigurable rotationalPidController = 
-        new PIDControllerConfigurable(VisionConstants.ROTATE_P, VisionConstants.ROTATE_I, VisionConstants.ROTATE_D, VisionConstants.TOLERANCE);
+        new PIDControllerConfigurable(0.15, 0.0, 0.005, 1.0);
+    // Forward (X) and lateral (Y) controllers: increased P for faster response.
     private static final PIDControllerConfigurable xPidController = 
-        new PIDControllerConfigurable(VisionConstants.MOVE_P, VisionConstants.MOVE_I, VisionConstants.MOVE_D, VisionConstants.TOLERANCE);
+        new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
     private static final PIDControllerConfigurable yPidController = 
-        new PIDControllerConfigurable(VisionConstants.STRAFE_P, VisionConstants.STRAFE_I, VisionConstants.STRAFE_D, VisionConstants.TOLERANCE);
+        new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
     
+    // Rotation error threshold (in degrees) for “good enough” rotation.
     private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1.0;
     
     private static final SwerveRequest.RobotCentric alignRequest = 
@@ -45,7 +47,7 @@ public class AutoAlignCommand extends Command {
     // Allowed AprilTag IDs for auto-alignment.
     private static final int[] ALLOWED_TAG_IDS = {17, 18, 19, 20, 21, 22, 6, 7, 8, 9, 10, 11};
     
-    // state machine for alignment.
+    // Simplified state machine for alignment.
     private enum AlignStage {
         ALIGN_ROTATION,
         ALIGN_Y,
@@ -83,7 +85,6 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void execute() {
-        // lock onto apriltag fix & only allowed apriltags
         RawFiducial fiducial;
         try {
             if (tagID != -1) {
@@ -120,8 +121,10 @@ public class AutoAlignCommand extends Command {
                     outputRotation = 0.0;
                     currentStage = AlignStage.ALIGN_Y;
                 } else {
-                    // Use the PID controller and invert the output so that a positive error rotates the robot in the correct direction.
+                    // Calculate rotation output and clamp it to reduce initial over-rotation.
                     outputRotation = -rotationalPidController.calculate(rotationError, 0.0);
+                    double maxRotationRate = 0.5; // Adjust as needed to limit overshoot
+                    outputRotation = Math.max(-maxRotationRate, Math.min(maxRotationRate, outputRotation));
                 }
                 break;
             }
@@ -171,7 +174,6 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public boolean isFinished() {
-        // if everyone's happy, we good
         return xPidController.atSetpoint() && rotationalPidController.atSetpoint() && yPidController.atSetpoint();
     }
     
