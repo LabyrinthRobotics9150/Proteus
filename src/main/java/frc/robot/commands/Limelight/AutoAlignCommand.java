@@ -145,26 +145,8 @@ public class AutoAlignCommand extends Command {
                     }
                     break;
                 }
-                case ALIGN_ROTATION_2: {
-                    // Stage 3: Re-correct rotation.
-                    double rotationError = fiducial.txnc;
-                    if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
-                        outputRotation = 0.0;
-                        currentStage = AlignStage.DRIVE_X;
-                    } else {
-                        double rawRotOutput = rotationalPidController.calculate(rotationError, 0.0);
-                        outputRotation = rawRotOutput * RotationsPerSecond.of(0.75).in(RadiansPerSecond) * -2;
-                        if (Math.abs(outputRotation) < MIN_ROTATIONAL_OUTPUT) {
-                            outputRotation = Math.copySign(MIN_ROTATIONAL_OUTPUT, outputRotation);
-                        }
-                    }
-                    outputX = 0.0;
-                    outputY = 0.0;
-                    break;
-                }
                 case DRIVE_X: {
-                    System.out.println("ALIGN FORWARD");
-                    // Stage 4: Drive forward (X).
+                    // Stage 3: Drive forward (X).
                     double rawXOutput = xPidController.calculate(fiducial.distToRobot, .6);
                     outputX = rawXOutput * TunerConstants.kSpeedAt12Volts.in(MetersPerSecond) * 0.6;
                     if (Math.abs(outputX) < MIN_VELOCITY_OUTPUT) {
