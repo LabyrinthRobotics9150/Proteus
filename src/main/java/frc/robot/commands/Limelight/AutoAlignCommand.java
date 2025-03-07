@@ -36,7 +36,7 @@ public class AutoAlignCommand extends Command {
         new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
     
     // Rotation error threshold (in degrees) for “good enough” rotation.
-    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1.0;
+    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = .5;
     
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
