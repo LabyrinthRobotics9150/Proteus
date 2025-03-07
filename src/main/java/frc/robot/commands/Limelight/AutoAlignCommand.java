@@ -126,9 +126,9 @@ public class AutoAlignCommand extends Command {
             // Assume rotation remains good; do not further adjust rotation.
             rotationOutput = 0.0;
             forwardOutput = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
-            // For lateral alignment, use the vision's vertical offset (tync) as an approximation.
-            lateralOutput = yPidController.calculate(fiducial.tync, yoffset);
+            lateralOutput = -yPidController.calculate(fiducial.tync, yoffset);
         }
+        
         
         // Apply the computed outputs.
         m_drivetrain.setControl(
