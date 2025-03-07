@@ -152,23 +152,9 @@ public class AutoAlignCommand extends Command {
                 }
                 break;
             }
-            case ALIGN_Y: {
-                // Compute lateral (Y) error.
-                double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-                System.out.println("yerror: " + yError);
-                if (Math.abs(yError - yoffset) < 0.05) { // within 5cm tolerance
-                    outputY = 0.0;
-                    currentStage = AlignStage.DRIVE_X;
-                } else {
-                    // Remove the negative sign so that the computed value is used directly.
-                    outputY = yPidController.calculate(yError, yoffset);
-                }
-                break;
-            }
             case DRIVE_X: {
                 // Drive forward/backward to achieve the desired distance.
                 double desiredDistance = 0.6;
-                System.out.println(fiducial.distToRobot);
                 if (Math.abs(fiducial.distToRobot - desiredDistance) < 0.05) { // within 5cm tolerance
                     outputX = 0.0;
                 } else {
