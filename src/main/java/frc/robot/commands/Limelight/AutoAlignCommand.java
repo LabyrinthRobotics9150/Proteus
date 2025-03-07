@@ -184,23 +184,8 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public boolean isFinished() {
-        // In the FINAL_CORRECT_ROTATION stage, finish when rotation error is within threshold,
-        // Y is at setpoint, and X is at setpoint.
-        if (currentStage == AlignStage.FINAL_CORRECT_ROTATION) {
-            try {
-                RawFiducial fiducial;
-                if (tagID == -1) {
-                    fiducial = m_Limelight.getFiducialWithId(m_Limelight.getClosestFiducial().id);
-                } else {
-                    fiducial = m_Limelight.getFiducialWithId(tagID);
-                }
-                boolean rotationAligned = Math.abs(fiducial.txnc) < ROTATION_ERROR_THRESHOLD_DEGREES;
-                boolean yAligned = yPidController.atSetpoint();
-                boolean xAligned = xPidController.atSetpoint();
-                return rotationAligned && yAligned && xAligned;
-            } catch (VisionSubsystem.NoSuchTargetException e) {
-                return false;
-            }
+        if (xPidController.atSetpoint() && rotationalPidController.atSetpoint() && yPidController.atSetpoint()) {
+            return true;
         }
         return false;
     }
