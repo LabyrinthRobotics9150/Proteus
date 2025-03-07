@@ -9,7 +9,7 @@ import frc.robot.commands.Limelight.AutoAlignCommand;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
-import frc.robot.commands.autos.ShootCommand;
+//import frc.robot.commands.autos.ShootCommand;
 
 public class AutonomousSequence extends SequentialCommandGroup {
 
