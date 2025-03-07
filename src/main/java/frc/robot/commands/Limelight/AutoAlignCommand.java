@@ -172,12 +172,11 @@ public class AutoAlignCommand extends Command {
                 // Drive forward/backward until the robot is at the desired distance.
                 double desiredDistance = 0.5; // meters
                 outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
-                // Do not revert to earlier stages even if txnc changes.
                 break;
             }
         }
         
-        // Send the computed (and fixed, when appropriate) control outputs.
+        // Send the calculated control outputts
         m_drivetrain.setControl(
             alignRequest
                 .withRotationalRate(outputRotation)
