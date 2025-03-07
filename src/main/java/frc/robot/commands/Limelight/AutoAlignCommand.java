@@ -25,30 +25,35 @@ public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
     
-    // PID controllers remain the same as before.
+    // Updated PID controllers for faster and smoother movement.
+    // Rotational controller remains unchanged.
     private static PIDControllerConfigurable rotationalPidController = 
-        new PIDControllerConfigurable(0.2, 0.0, 0.005, 0.3);
+        new PIDControllerConfigurable(0.15, 0.0, 0.005, 1.0);
+    // Forward (X) and lateral (Y) controllers.
     private static final PIDControllerConfigurable xPidController = 
-        new PIDControllerConfigurable(0.8, 0.0, 0.001, 0.02);
+        new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
     private static final PIDControllerConfigurable yPidController = 
-        new PIDControllerConfigurable(0.8, 0.0, 0.001, 0.02);
+        new PIDControllerConfigurable(0.6, 0.0, 0.001, 0.05);
+    
+    // Rotation error threshold (in degrees) for “good enough” rotation.
+    private static final double ROTATION_ERROR_THRESHOLD_DEGREES = 1.0;
     
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
-    
     private static int tagID = -1;
     private double yoffset;
-    private double desiredDistance = 0.6; // Closer target distance
-
-    // Tolerance (in degrees) for acceptable rotation alignment.
-    private static final double ROTATION_TOLERANCE = 1.0;
+    
     // Allowed AprilTag IDs for auto-alignment.
     private static final int[] ALLOWED_TAG_IDS = {17, 18, 19, 20, 21, 22, 6, 7, 8, 9, 10, 11};
     
-    // Two alignment phases: first rotate, then drive (x and y) concurrently.
-    private enum AlignStage { ROTATION, TRANSLATION }
-    private AlignStage currentStage = AlignStage.ROTATION;
+    // Simplified state machine for alignment.
+    private enum AlignStage {
+        ALIGN_ROTATION,
+        ALIGN_Y,
+        DRIVE_X
+    }
+    private AlignStage currentStage;
     
     // Constructor for central alignment.
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
@@ -62,6 +67,7 @@ public class AutoAlignCommand extends Command {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         addRequirements(m_Limelight);
+        // For right alignment, set a small positive offset; for left alignment, a small negative offset.
         yoffset = rightAlign ? 0.01 : -0.01;
     }
     
@@ -70,12 +76,12 @@ public class AutoAlignCommand extends Command {
         rotationalPidController.reset();
         xPidController.reset();
         yPidController.reset();
-        currentStage = AlignStage.ROTATION;
         try {
             tagID = m_Limelight.getClosestFiducial().id;
         } catch (VisionSubsystem.NoSuchTargetException e) {
             tagID = -1;
         }
+        currentStage = AlignStage.ALIGN_ROTATION;
     }
     
     @Override
@@ -104,54 +110,74 @@ public class AutoAlignCommand extends Command {
             return;
         }
         
-        double rotationOutput = 0.0;
-        double forwardOutput = 0.0;
-        double lateralOutput = 0.0;
+        double outputX = 0.0;
+        double outputY = 0.0;
+        double outputRotation = 0.0;
         
-        // Phase 1: Rotation alignment.
-        if (currentStage == AlignStage.ROTATION) {
-            if (Math.abs(fiducial.txnc) > ROTATION_TOLERANCE) {
-                rotationOutput = rotationalPidController.calculate(fiducial.txnc, 0.0);
-                forwardOutput = 0.0;
-                lateralOutput = 0.0;
-            } else {
-                // Once within tolerance, switch to translation phase.
-                currentStage = AlignStage.TRANSLATION;
+        switch (currentStage) {
+            case ALIGN_ROTATION: {
+                // Rotate until the horizontal error is within threshold.
+                double rotationError = fiducial.txnc; // in degrees
+                if (Math.abs(rotationError) < ROTATION_ERROR_THRESHOLD_DEGREES) {
+                    outputRotation = 0.0;
+                    currentStage = AlignStage.ALIGN_Y;
+                } else {
+                    // Rotation remains unchanged.
+                    outputRotation = rotationalPidController.calculate(rotationError, 0.0);
+                    double maxRotationRate = 0.5; // Limit overshoot.
+                    outputRotation = Math.max(-maxRotationRate, Math.min(maxRotationRate, outputRotation));
+                }
+                break;
+            }
+            case ALIGN_Y: {
+                // Compute lateral (Y) error.
+                double yError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                if (Math.abs(yError - yoffset) < 0.05) { // within 5cm tolerance
+                    outputY = 0.0;
+                    currentStage = AlignStage.DRIVE_X;
+                } else {
+                    // Remove the negative sign so that the computed value is used directly.
+                    outputY = yPidController.calculate(yError, yoffset);
+                }
+                break;
+            }
+            case DRIVE_X: {
+                // Drive forward/backward to reach a desired distance (e.g., 0.6 meters from the target).
+                double desiredDistance = 0.6;
+                if (Math.abs(fiducial.distToRobot - desiredDistance) < 0.05) { // within 5cm tolerance
+                    outputX = 0.0;
+                } else {
+                    // Invert the output so that the robot moves toward the tag.
+                    outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
+                }
+                // If the rotation error becomes significant again, return to rotation alignment.
+                if (Math.abs(fiducial.txnc) > ROTATION_ERROR_THRESHOLD_DEGREES) {
+                    currentStage = AlignStage.ALIGN_ROTATION;
+                }
+                break;
             }
         }
         
-        // Phase 2: Translation (x and y) control.
-        if (currentStage == AlignStage.TRANSLATION) {
-            // Assume rotation remains good; do not further adjust rotation.
-            rotationOutput = 0.0;
-            forwardOutput = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
-            lateralOutput = -yPidController.calculate(fiducial.tync, yoffset);
-        }
-        
-        
-        // Apply the computed outputs.
+        // Apply the computed outputs to the drivetrain.
         m_drivetrain.setControl(
             alignRequest
-                .withRotationalRate(rotationOutput)
-                .withVelocityX(forwardOutput)
-                .withVelocityY(lateralOutput)
+                .withRotationalRate(outputRotation)
+                .withVelocityX(outputX)
+                .withVelocityY(outputY)
         );
         
-        // Publish status for debugging.
-        SmartDashboard.putString("AutoAlign_Phase", currentStage.name());
-        SmartDashboard.putNumber("AutoAlign_txnc", fiducial.txnc);
-        SmartDashboard.putNumber("AutoAlign_distToRobot", fiducial.distToRobot);
-        SmartDashboard.putNumber("AutoAlign_rotationOutput", rotationOutput);
-        SmartDashboard.putNumber("AutoAlign_forwardOutput", forwardOutput);
-        SmartDashboard.putNumber("AutoAlign_lateralOutput", lateralOutput);
+        // Publish status information for debugging.
+        SmartDashboard.putString("Align Stage", currentStage.name());
+        SmartDashboard.putNumber("txnc", fiducial.txnc);
+        SmartDashboard.putNumber("distToRobot", fiducial.distToRobot);
+        SmartDashboard.putNumber("rotationalRate", outputRotation);
+        SmartDashboard.putNumber("velocityX", outputX);
+        SmartDashboard.putNumber("velocityY", outputY);
     }
     
     @Override
     public boolean isFinished() {
-        // Command finishes only when all controllers are at setpoint in the translation phase.
-        return (currentStage == AlignStage.TRANSLATION) &&
-               xPidController.atSetpoint() &&
-               yPidController.atSetpoint();
+        return xPidController.atSetpoint() && rotationalPidController.atSetpoint() && yPidController.atSetpoint();
     }
     
     @Override
