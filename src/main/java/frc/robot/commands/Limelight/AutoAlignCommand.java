@@ -28,10 +28,10 @@ public class AutoAlignCommand extends Command {
     private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(1, 10);
 
     
-    // PID controllers now work in appropriate units:
+    
     // – For rotation: error is in degrees and tolerance is 1°.
     private static ProfiledPIDController rotationalPidController = 
-        new ProfiledPIDController(4.0, 0.0, 0.00, Rotationconstraints);
+        new ProfiledPIDController(2.0, 0.0, 0.00, Rotationconstraints); //halfed, test
     // For forward drive (X) and lateral (Y) control (meters)
     private static final ProfiledPIDController xPidController = 
     new ProfiledPIDController(1.5, 0.0, 0.00, xyconstraints);
@@ -142,6 +142,86 @@ public class AutoAlignCommand extends Command {
             outputY = 0.0;
             outputRotation = 0.0;
         }
+
+        // ALL AT ONCE
+
+        // y stuff
+
+        double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+        lateralError += yoffset;
+        if (fixedLateralOutput == null) {
+            fixedLateralOutput = yPidController.calculate(lateralError, 0);
+            }
+        outputY = fixedLateralOutput;
+        // When lateral error is within 20 cm, lock in the correction.
+        if (Math.abs(lateralError - yoffset) < 0.2) {
+            fixedLateralOutput = 0.0;
+        }
+
+        // rotation stuff
+
+        // Compute rotation error in degrees.
+        double rotationErrorDeg = fiducial.txnc;
+        if (fixedRotationOutput == null) {
+            fixedRotationOutput = rotationalPidController.calculate(rotationErrorDeg, 0.0);
+            // Enforce a minimum output if the computed value is too small.
+            //if (Math.abs(fixedRotationOutput) < MIN_ROTATION_OUTPUT_DEG &&
+            //    Math.abs(rotationErrorDeg) > rotationalPidController.getErrorTolerance()) {
+            //}
+        }
+        // Convert the PID output (in deg/s) to radians per second for the drivetrain.
+        outputRotation = Units.degreesToRadians(fixedRotationOutput);
+        // When the rotation error is within 1°, lock in the correction and advance.
+        if (Math.abs(rotationErrorDeg) < 3.0) {
+            fixedRotationOutput = 0.0;
+        }
+
+        // MAYBE try?
+
+        /*
+        // Compute rotation error in degrees.
+        double rotationErrorDeg = fiducial.txnc;
+
+        // Always compute PID output based on current error.
+        double pidOutput = rotationalPidController.calculate(rotationErrorDeg, 0.0);
+
+        // Apply minimum output if error exceeds tolerance.
+        if (Math.abs(pidOutput) < MIN_ROTATION_OUTPUT_DEG 
+            && Math.abs(rotationErrorDeg) > rotationalPidController.getErrorTolerance()) {
+        pidOutput = Math.copySign(MIN_ROTATION_OUTPUT_DEG, pidOutput);
+        }
+
+        // Stop only when the error is within the PID's acceptable tolerance.
+        if (Math.abs(rotationErrorDeg) <= rotationalPidController.getErrorTolerance()) {
+        pidOutput = 0.0;
+        }
+
+        // Convert to radians per second.
+        outputRotation = Units.degreesToRadians(pidOutput);
+         */
+
+        // x stuff
+
+        // Drive forward/backward until the robot is at the desired distance.
+        double desiredDistance = 0.1; // meters
+        outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
+        // Enforce a minimum forward output if needed.
+        if (Math.abs(outputX) < MIN_DRIVE_X_OUTPUT &&
+            Math.abs(fiducial.distToRobot - desiredDistance) > xPidController.getPositionTolerance()) {
+            outputX = Math.copySign(MIN_DRIVE_X_OUTPUT, outputX);
+        }
+
+
+        // Send the calculated control outputs.
+        m_drivetrain.setControl(
+            alignRequest
+                .withRotationalRate(outputRotation)
+                .withVelocityX(outputX)
+                .withVelocityY(outputY)
+        );
+
+
+        /*
         
         switch (currentStage) {
             case ALIGN_Y: {
@@ -203,6 +283,9 @@ public class AutoAlignCommand extends Command {
                 .withVelocityX(outputX)
                 .withVelocityY(outputY)
         );
+
+
+    */
         
         // Publish for debugging.
         SmartDashboard.putString("Align Stage", currentStage.name());

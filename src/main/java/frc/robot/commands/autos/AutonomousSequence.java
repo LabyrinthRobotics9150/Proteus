@@ -47,7 +47,7 @@ public class AutonomousSequence extends SequentialCommandGroup {
                 () -> isAligned(limelight)
             ),
 
-            // (3) Hold alignment using left‑alignment.
+            // (3) Hold alignment using right-alignment.
             new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2),
 
             // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
