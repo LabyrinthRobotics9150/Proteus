@@ -258,7 +258,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     .whileTrue(ballLevel2);
 
     m_secondaryController.b()
-    .and(m_secondaryController.rightTrigger())
+    .and(m_secondaryController.leftBumper())
     .whileTrue(ballLevel1);
 
     }

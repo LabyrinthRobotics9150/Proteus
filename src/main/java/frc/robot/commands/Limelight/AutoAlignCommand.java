@@ -8,21 +8,10 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.LimelightHelpers.RawFiducial;
 import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.ProfiledPIDController;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.math.trajectory.TrapezoidProfile.Constraints;
 import edu.wpi.first.math.util.Units;
-
-/**
- * A simple extension of PIDController that allows configurable tolerance.
- */
-class PIDControllerConfigurable extends PIDController {
-    public PIDControllerConfigurable(double kP, double kI, double kD) {
-        super(kP, kI, kD);
-    }
-    
-    public PIDControllerConfigurable(double kP, double kI, double kD, double tolerance) {
-        super(kP, kI, kD);
-        this.setTolerance(tolerance);
-    }
-}
 
 /**
  * Revised AutoAlignCommand now performs alignment in three stages:
@@ -36,16 +25,20 @@ class PIDControllerConfigurable extends PIDController {
 public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
+
+    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(1, 10);
+    private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(1, 10);
+
     
     // PID controllers now work in appropriate units:
     // – For rotation: error is in degrees and tolerance is 1°.
-    private static PIDControllerConfigurable rotationalPidController = 
-        new PIDControllerConfigurable(0.3, 0.0, 0.01, 1.0);
+    private static ProfiledPIDController rotationalPidController = 
+        new ProfiledPIDController(0.3, 0.0, 0.00, Rotationconstraints);
     // For forward drive (X) and lateral (Y) control (meters)
-    private static final PIDControllerConfigurable xPidController = 
-        new PIDControllerConfigurable(1.2, 0.0, 0.002, 0.05);
-    private static final PIDControllerConfigurable yPidController = 
-        new PIDControllerConfigurable(1.2, 0.0, 0.002, 0.05);
+    private static final ProfiledPIDController xPidController = 
+    new ProfiledPIDController(0.3, 0.0, 0.00, xyconstraints);
+    private static final ProfiledPIDController yPidController = 
+    new ProfiledPIDController(0.3, 0.0, 0.00, xyconstraints);
     
     // Using a robot-centric control request.
     private static final SwerveRequest.RobotCentric alignRequest = 
@@ -96,9 +89,9 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void initialize() {
-        rotationalPidController.reset();
-        xPidController.reset();
-        yPidController.reset();
+        rotationalPidController.reset(0);;
+        xPidController.reset(0);;
+        yPidController.reset(0);
         fixedRotationOutput = null;
         fixedLateralOutput = null;
         try {
@@ -150,7 +143,7 @@ public class AutoAlignCommand extends Command {
                     fixedLateralOutput = yPidController.calculate(lateralError, yoffset);
                     // Apply a minimum threshold if needed.
                     if (Math.abs(fixedLateralOutput) < MIN_LATERAL_OUTPUT &&
-                        Math.abs(lateralError - yoffset) > yPidController.getErrorTolerance()) {
+                        Math.abs(lateralError - yoffset) > yPidController.getPositionTolerance()) {
                         fixedLateralOutput = Math.copySign(MIN_LATERAL_OUTPUT, fixedLateralOutput);
                     }
                 }
@@ -169,10 +162,9 @@ public class AutoAlignCommand extends Command {
                 if (fixedRotationOutput == null) {
                     fixedRotationOutput = rotationalPidController.calculate(rotationErrorDeg, 0.0);
                     // Enforce a minimum output if the computed value is too small.
-                    if (Math.abs(fixedRotationOutput) < MIN_ROTATION_OUTPUT_DEG &&
-                        Math.abs(rotationErrorDeg) > rotationalPidController.getErrorTolerance()) {
-                        fixedRotationOutput = Math.copySign(MIN_ROTATION_OUTPUT_DEG, fixedRotationOutput);
-                    }
+                    //if (Math.abs(fixedRotationOutput) < MIN_ROTATION_OUTPUT_DEG &&
+                    //    Math.abs(rotationErrorDeg) > rotationalPidController.getErrorTolerance()) {
+                    //}
                 }
                 // Convert the PID output (in deg/s) to radians per second for the drivetrain.
                 outputRotation = Units.degreesToRadians(fixedRotationOutput);
@@ -191,7 +183,7 @@ public class AutoAlignCommand extends Command {
                 outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
                 // Enforce a minimum forward output if needed.
                 if (Math.abs(outputX) < MIN_DRIVE_X_OUTPUT &&
-                    Math.abs(fiducial.distToRobot - desiredDistance) > xPidController.getErrorTolerance()) {
+                    Math.abs(fiducial.distToRobot - desiredDistance) > xPidController.getPositionTolerance()) {
                     outputX = Math.copySign(MIN_DRIVE_X_OUTPUT, outputX);
                 }
                 break;
