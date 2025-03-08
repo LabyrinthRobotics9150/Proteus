@@ -18,8 +18,7 @@ public class BallCommand extends Command {
 
     @Override
     public void execute() {
-        intake.moveWheel(.1);
-        // now handled in subsystem
+        intake.moveWheel(.2);
     }
 
     @Override

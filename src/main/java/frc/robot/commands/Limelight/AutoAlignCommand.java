@@ -31,12 +31,12 @@ public class AutoAlignCommand extends Command {
     // PID controllers now work in appropriate units:
     // – For rotation: error is in degrees and tolerance is 1°.
     private static ProfiledPIDController rotationalPidController = 
-        new ProfiledPIDController(1.5, 0.0, 0.00, Rotationconstraints);
+        new ProfiledPIDController(4.0, 0.0, 0.00, Rotationconstraints);
     // For forward drive (X) and lateral (Y) control (meters)
     private static final ProfiledPIDController xPidController = 
-    new ProfiledPIDController(.3, 0.0, 0.00, xyconstraints);
+    new ProfiledPIDController(1.5, 0.0, 0.00, xyconstraints);
     private static final ProfiledPIDController yPidController = 
-    new ProfiledPIDController(.3, 0.0, 0.00, xyconstraints);
+    new ProfiledPIDController(1.5, 0.0, 0.00, xyconstraints);
     
     // Using a robot-centric control request.
     private static final SwerveRequest.RobotCentric alignRequest = 
@@ -185,7 +185,7 @@ public class AutoAlignCommand extends Command {
             case DRIVE_X: {
                 System.out.println("Stage: DRIVE_X");
                 // Drive forward/backward until the robot is at the desired distance.
-                double desiredDistance = 0.3; // meters
+                double desiredDistance = 0.1; // meters
                 outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
                 // Enforce a minimum forward output if needed.
                 if (Math.abs(outputX) < MIN_DRIVE_X_OUTPUT &&

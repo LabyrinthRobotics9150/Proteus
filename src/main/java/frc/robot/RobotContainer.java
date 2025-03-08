@@ -50,10 +50,10 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   // secondary
     HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90  );
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
-    HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
+    HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .8);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, .2);
-    HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, .4);
-    HoldAndReturnCommand ballLevel2 = new HoldAndReturnCommand(m_elevator, .3);
+    HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, 1.2);
+    HoldAndReturnCommand ballLevel2 = new HoldAndReturnCommand(m_elevator, 2.5);
 
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
     WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.2);
@@ -204,7 +204,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     // Y - reset gyro
     m_primaryController.y().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-    // change binding later - slow mode
+    // slow mode
     m_primaryController.leftTrigger()
     .whileTrue(Commands.runOnce(() -> m_slowMode = true))
     .onFalse(Commands.runOnce(() -> m_slowMode = false));
@@ -212,7 +212,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     // Right Trigger - intake / outtake dependant on where the pivot arm is
     m_primaryController.rightTrigger()
-    .onTrue(intakeScoreCommand);
+    .whileTrue(intakeScoreCommand);
 
     // Rb - Auto-align to right coral spoke
     m_primaryController.rightBumper()

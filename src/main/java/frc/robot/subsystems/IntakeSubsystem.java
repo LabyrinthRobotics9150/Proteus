@@ -16,7 +16,7 @@ public class IntakeSubsystem extends SubsystemBase {
     public static LaserCan laserCan;
     public static final SparkFlex IntakePivotMotor = new SparkFlex(Constants.OperatorConstants.kIntakePivotCanId, MotorType.kBrushless); 
     public static final SparkFlex IntakeWheelsMotor = new SparkFlex(Constants.OperatorConstants.kIntakeWheelsCanId, MotorType.kBrushless);
-    private final PIDController pidController = new PIDController(0.5, 0, 0);
+    private final PIDController pidController = new PIDController(.7, 0, 0);
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
     public double HOME_POSITION = 0.84;
