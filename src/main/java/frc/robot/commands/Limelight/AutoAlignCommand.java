@@ -31,12 +31,12 @@ public class AutoAlignCommand extends Command {
     // PID controllers now work in appropriate units:
     // – For rotation: error is in degrees and tolerance is 1°.
     private static ProfiledPIDController rotationalPidController = 
-        new ProfiledPIDController(0.3, 0.0, 0.00, Rotationconstraints);
+        new ProfiledPIDController(1.5, 0.0, 0.00, Rotationconstraints);
     // For forward drive (X) and lateral (Y) control (meters)
     private static final ProfiledPIDController xPidController = 
-    new ProfiledPIDController(0.3, 0.0, 0.00, xyconstraints);
+    new ProfiledPIDController(.3, 0.0, 0.00, xyconstraints);
     private static final ProfiledPIDController yPidController = 
-    new ProfiledPIDController(0.3, 0.0, 0.00, xyconstraints);
+    new ProfiledPIDController(.3, 0.0, 0.00, xyconstraints);
     
     // Using a robot-centric control request.
     private static final SwerveRequest.RobotCentric alignRequest = 
@@ -87,9 +87,9 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         yoffset = 0;
         if (rightAlign) {
-            yoffset = .4;
+            yoffset = -1;
         } else {
-            yoffset = -.4;
+            yoffset = 1;
         }
         addRequirements(m_Limelight);
     }
@@ -148,22 +148,19 @@ public class AutoAlignCommand extends Command {
                 System.out.println("Stage: ALIGN_Y");
                 // Compute lateral error (meters) using the target’s horizontal angle.
                 double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                lateralError += yoffset;
                 if (fixedLateralOutput == null) {
-                    fixedLateralOutput = yPidController.calculate(lateralError, yoffset);
-                    // Apply a minimum threshold if needed.
-                    if (Math.abs(fixedLateralOutput) < MIN_LATERAL_OUTPUT &&
-                        Math.abs(lateralError - yoffset) > yPidController.getPositionTolerance()) {
-                        fixedLateralOutput = Math.copySign(MIN_LATERAL_OUTPUT, fixedLateralOutput);
+                    fixedLateralOutput = yPidController.calculate(lateralError, 0);
                     }
-                }
                 outputY = fixedLateralOutput;
                 // When lateral error is within 20 cm, lock in the correction.
                 if (Math.abs(lateralError - yoffset) < 0.2) {
                     fixedLateralOutput = 0.0;
                     currentStage = AlignStage.ALIGN_ROTATION;
-                }
+                
                 break;
             }
+        }
             case ALIGN_ROTATION: {
                 System.out.println("Stage: ALIGN_ROTATION");
                 // Compute rotation error in degrees.

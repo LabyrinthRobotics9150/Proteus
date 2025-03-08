@@ -30,18 +30,9 @@ public class ElevatorRaise extends Command {
     }
 
     @Override
-    public void execute() {
-        // Continuous position maintenance
-        elevator.setHeight(targetHeight);
-    }
-
-    @Override
     public void end(boolean interrupted) {
-        if (interrupted) {
-            elevator.setHeight(0);
-            if (targetHeight > 0.5) {
+            if (targetHeight < 0.5) {
                 RobotContainer.m_slowMode = false;
             }
         }
     }
-}

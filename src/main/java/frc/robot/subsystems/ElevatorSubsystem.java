@@ -52,7 +52,7 @@ public class ElevatorSubsystem extends SubsystemBase {
     // Same with P, I, D, and gF
     private double kP = 2.0;
     private double kI = 0;
-    private double kD = 0.1;
+    private double kD = 0.0;
     private double gF = 1.0;
     private double kV = 16.0;
 

@@ -51,16 +51,16 @@ public class AutonomousSequence extends SequentialCommandGroup {
             new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2),
 
             // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
-            new ElevatorRaise(elevator, 3.9).withTimeout(3).andThen(new WaitCommand(0.5)),
+            new ElevatorRaise(elevator, 3.9).withTimeout(3).andThen(new WaitCommand(0.1)),
 
             // (5) Run the shoot command (spin intake wheels at 0.5 speed) for 2 seconds.
-            new ShootCommand(intake, 0.5).withTimeout(2),
+            new ShootCommand(intake, 0.5).withTimeout(1),
 
             // (6) Lower the elevator back to 0.
             new ElevatorRaise(elevator, 0).withTimeout(2).andThen(new WaitCommand(0.25)),
 
             // (7) Return to the initial starting pose.
-            new FollowPathCommand(drivetrain, initialPose).withTimeout(5)
+            new FollowPathCommand(drivetrain, initialPose)
         );
     }
     
