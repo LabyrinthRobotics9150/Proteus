@@ -60,13 +60,17 @@ public class AutoAlignCommand extends Command {
         DRIVE_X
     }
     private AlignStage currentStage;
+
+    private static double outputX;
+    private static double outputY;
+    private static double outputRotation;
     
     // These fields will store the one‑shot PID outputs.
     private Double fixedRotationOutput = null;
     private Double fixedLateralOutput = null;
     
     // Minimum command thresholds:
-    private static final double MIN_ROTATION_OUTPUT_DEG = 0.5; // Minimum rotational output in degrees per second
+    private static final double MIN_ROTATION_OUTPUT_DEG = 1; // Minimum rotational output in degrees per second
     private static final double MIN_LATERAL_OUTPUT = 0.05;     // Minimum lateral output in m/s
     private static final double MIN_DRIVE_X_OUTPUT = 0.05;       // Minimum forward/backward output in m/s
     
@@ -83,7 +87,12 @@ public class AutoAlignCommand extends Command {
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, boolean rightAlign) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
-        yoffset = rightAlign ? 0.2 : -0.2;
+        yoffset = 0;
+        if (rightAlign) {
+            yoffset = .4;
+        } else {
+            yoffset = -.4;
+        }
         addRequirements(m_Limelight);
     }
     
@@ -108,12 +117,7 @@ public class AutoAlignCommand extends Command {
     public void execute() {
         RawFiducial fiducial;
         try {
-            if (tagID != -1) {
-                fiducial = m_Limelight.getFiducialWithId(tagID);
-            } else {
-                fiducial = m_Limelight.getClosestFiducial();
-                tagID = fiducial.id;
-            }
+            fiducial = m_Limelight.getFiducialWithId(tagID);
             boolean allowed = false;
             for (int id : ALLOWED_TAG_IDS) {
                 if (fiducial.id == id) {
@@ -126,13 +130,20 @@ public class AutoAlignCommand extends Command {
                 return;
             }
         } catch (VisionSubsystem.NoSuchTargetException e) {
+            if (currentStage.equals("DRIVE_X")) {
+                if (!xPidController.atSetpoint()) {
+
+                }
+            }
             m_drivetrain.setControl(idleRequest);
             return;
         }
-        
-        double outputX = 0.0;
-        double outputY = 0.0;
-        double outputRotation = 0.0;
+
+        if (! currentStage.equals("DRIVE_X") || (xPidController.atSetpoint() )) {
+            outputX = 0.0;
+            outputY = 0.0;
+            outputRotation = 0.0;
+        }
         
         switch (currentStage) {
             case ALIGN_Y: {
@@ -169,7 +180,7 @@ public class AutoAlignCommand extends Command {
                 // Convert the PID output (in deg/s) to radians per second for the drivetrain.
                 outputRotation = Units.degreesToRadians(fixedRotationOutput);
                 // When the rotation error is within 1°, lock in the correction and advance.
-                if (Math.abs(rotationErrorDeg) < 1.0) {
+                if (Math.abs(rotationErrorDeg) < 3.0) {
                     fixedRotationOutput = 0.0;
                     currentStage = AlignStage.DRIVE_X;
                     System.out.println("Rotation at setpoint");
@@ -179,7 +190,7 @@ public class AutoAlignCommand extends Command {
             case DRIVE_X: {
                 System.out.println("Stage: DRIVE_X");
                 // Drive forward/backward until the robot is at the desired distance.
-                double desiredDistance = 0.2; // meters
+                double desiredDistance = 0.3; // meters
                 outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
                 // Enforce a minimum forward output if needed.
                 if (Math.abs(outputX) < MIN_DRIVE_X_OUTPUT &&
