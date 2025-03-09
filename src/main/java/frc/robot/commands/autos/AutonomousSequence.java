@@ -8,6 +8,8 @@ import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.LimelightHelpers.RawFiducial;
 import com.ctre.phoenix6.swerve.SwerveRequest;
+import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import java.util.function.BooleanSupplier;
@@ -29,12 +31,10 @@ public class AutonomousSequence extends SequentialCommandGroup {
             //new DriveForwardCommand(drivetrain, 2.0).withTimeout(2)
             
             // (3) Hold alignment using right-alignment.
-            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2).andThen(new WaitCommand(2)),
-
-            new DriveForwardCommand(drivetrain, 1).withTimeout(2),
+            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2).andThen(new WaitCommand(5)),
 
             // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
-            new ElevatorRaise(elevator, 3.9).withTimeout(3).andThen(new WaitCommand(0.1)),
+            new ElevatorRaise(elevator, 3.9).withTimeout(1).andThen(new WaitCommand(0.1)),
 
             // (5) Run the shoot command (spin intake wheels at 0.5 speed) for 2 seconds.
             new ShootCommand(intake, 0.5).withTimeout(1),
@@ -113,6 +113,7 @@ public class AutonomousSequence extends SequentialCommandGroup {
             addRequirements(drivetrain);
             xController.setTolerance(0.05);
             yController.setTolerance(0.05);
+            drivetrain.setControl(new SwerveRequest.Idle());
         }
 
         @Override
@@ -148,7 +149,6 @@ public class AutonomousSequence extends SequentialCommandGroup {
             targetDegrees = drivetrain.getState().Pose.getRotation().getDegrees() + degrees;
             rotationController.enableContinuousInput(-180, 180);
             rotationController.setTolerance(1.5);
-            addRequirements(drivetrain);
         }
 
         @Override

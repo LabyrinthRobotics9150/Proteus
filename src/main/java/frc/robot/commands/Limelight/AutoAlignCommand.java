@@ -24,14 +24,14 @@ public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
 
-    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(.05, 10);
+    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(2, 10);
     private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(.05, 10);
 
     
     
     // – For rotation: error is in degrees and tolerance is 1°.
     private static ProfiledPIDController rotationalPidController = 
-        new ProfiledPIDController(2.0, 0.0, 0.0, Rotationconstraints); //halfed, test
+        new ProfiledPIDController(.3, 0.0, 0.0, Rotationconstraints); //halfed, test
     // For forward drive (X) and lateral (Y) control (meters)
     private static final ProfiledPIDController xPidController = 
     new ProfiledPIDController(.7, 0.0, 0.0, xyconstraints);
@@ -41,6 +41,9 @@ public class AutoAlignCommand extends Command {
     // Using a robot-centric control request.
     private static final SwerveRequest.RobotCentric alignRequest = 
         new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+    
+    private static final SwerveRequest.RobotCentric touchRequest = 
+    new SwerveRequest.RobotCentric().withDriveRequestType(DriveRequestType.OpenLoopVoltage);
     private static final SwerveRequest.Idle idleRequest = new SwerveRequest.Idle();
     
     // Track the chosen fiducial by ID (if available)
@@ -71,6 +74,7 @@ public class AutoAlignCommand extends Command {
     private static final double MIN_ROTATION_OUTPUT_DEG = 1; // Minimum rotational output in degrees per second
     private static final double MIN_LATERAL_OUTPUT = 0.05;     // Minimum lateral output in m/s
     private static final double MIN_DRIVE_X_OUTPUT = 0.05;       // Minimum forward/backward output in m/s
+    private static RawFiducial fiducial;
     
     // Constructor for central alignment.
     public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
@@ -88,9 +92,9 @@ public class AutoAlignCommand extends Command {
         this.m_Limelight = limelight;
         yoffset = 0;
         if (rightAlign) {
-            yoffset = .6;
+            yoffset = .68;
         } else {
-            yoffset = -.6;
+            yoffset = -.68;
         }
 
         addRequirements(m_Limelight);
@@ -115,7 +119,7 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void execute() {
-        RawFiducial fiducial = new RawFiducial(tagID, outputY, outputX, outputRotation, MIN_ROTATION_OUTPUT_DEG, MIN_LATERAL_OUTPUT, MIN_DRIVE_X_OUTPUT);
+        fiducial = new RawFiducial(tagID, outputY, outputX, outputRotation, MIN_ROTATION_OUTPUT_DEG, MIN_LATERAL_OUTPUT, MIN_DRIVE_X_OUTPUT);
         try {
             fiducial = m_Limelight.getFiducialWithId(tagID);
             boolean allowed = false;
@@ -130,8 +134,8 @@ public class AutoAlignCommand extends Command {
                 return;
             }
         } catch (VisionSubsystem.NoSuchTargetException e) {
-                m_drivetrain.setControl(idleRequest);
-            end(true);
+            end(false);
+            return;
     }
         
 
@@ -168,7 +172,7 @@ public class AutoAlignCommand extends Command {
 
 
         // Compute rotation error in degrees.
-        double rotationErrorRad = Units.degreesToRadians(fiducial.ta);
+        double rotationErrorRad = -Units.degreesToRadians(fiducial.txnc);
 
         // Always compute PID output based on current error.
         outputRotation = rotationalPidController.calculate(rotationErrorRad, 0.0);
@@ -181,7 +185,7 @@ public class AutoAlignCommand extends Command {
         // x stuff
 
         // Drive forward/backward until the robot is at the desired distance.
-        double desiredDistance = 0.1; // meters
+        double desiredDistance = 2; // meters
         outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
         // Enforce a minimum forward output if needed.
         if (Math.abs(outputX) < MIN_DRIVE_X_OUTPUT &&
@@ -199,71 +203,6 @@ public class AutoAlignCommand extends Command {
         );
 
 
-        /*
-        
-        switch (currentStage) {
-            case ALIGN_Y: {
-                System.out.println("Stage: ALIGN_Y");
-                // Compute lateral error (meters) using the target’s horizontal angle.
-                double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-                lateralError += yoffset;
-                if (fixedLateralOutput == null) {
-                    fixedLateralOutput = yPidController.calculate(lateralError, 0);
-                    }
-                outputY = fixedLateralOutput;
-                // When lateral error is within 20 cm, lock in the correction.
-                if (Math.abs(lateralError - yoffset) < 0.2) {
-                    fixedLateralOutput = 0.0;
-                    currentStage = AlignStage.ALIGN_ROTATION;
-                
-                break;
-            }
-        }
-            case ALIGN_ROTATION: {
-                System.out.println("Stage: ALIGN_ROTATION");
-                // Compute rotation error in degrees.
-                double rotationErrorDeg = fiducial.txnc;
-                if (fixedRotationOutput == null) {
-                    fixedRotationOutput = rotationalPidController.calculate(rotationErrorDeg, 0.0);
-                    // Enforce a minimum output if the computed value is too small.
-                    //if (Math.abs(fixedRotationOutput) < MIN_ROTATION_OUTPUT_DEG &&
-                    //    Math.abs(rotationErrorDeg) > rotationalPidController.getErrorTolerance()) {
-                    //}
-                }
-                // Convert the PID output (in deg/s) to radians per second for the drivetrain.
-                outputRotation = Units.degreesToRadians(fixedRotationOutput);
-                // When the rotation error is within 1°, lock in the correction and advance.
-                if (Math.abs(rotationErrorDeg) < 3.0) {
-                    fixedRotationOutput = 0.0;
-                    currentStage = AlignStage.DRIVE_X;
-                    System.out.println("Rotation at setpoint");
-                }
-                break;
-            }
-            case DRIVE_X: {
-                System.out.println("Stage: DRIVE_X");
-                // Drive forward/backward until the robot is at the desired distance.
-                double desiredDistance = 0.1; // meters
-                outputX = -xPidController.calculate(fiducial.distToRobot, desiredDistance);
-                // Enforce a minimum forward output if needed.
-                if (Math.abs(outputX) < MIN_DRIVE_X_OUTPUT &&
-                    Math.abs(fiducial.distToRobot - desiredDistance) > xPidController.getPositionTolerance()) {
-                    outputX = Math.copySign(MIN_DRIVE_X_OUTPUT, outputX);
-                }
-                break;
-            }
-        }
-        
-        // Send the calculated control outputs.
-        m_drivetrain.setControl(
-            alignRequest
-                .withRotationalRate(outputRotation)
-                .withVelocityX(outputX)
-                .withVelocityY(outputY)
-        );
-
-
-    */
         
         // Publish for debugging.
         SmartDashboard.putString("Align Stage", currentStage.name());
@@ -276,16 +215,24 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public boolean isFinished() {
-        // We finish once the drive (X) PID controller reaches its setpoint.
-        if (xPidController.atSetpoint()) {
+        if (xPidController.atGoal()) {
             m_drivetrain.setControl(idleRequest);
             System.out.println("finished");
         }
-        return xPidController.atSetpoint();
+        return xPidController.atGoal();
     }
     
     @Override
     public void end(boolean interrupted) {
-        m_drivetrain.setControl(idleRequest);
+        if (!interrupted) {
+            if (!xPidController.atGoal()) {
+                System.out.println("not at goal");
+                m_drivetrain.setControl(
+                    touchRequest
+                        .withVelocityX(outputX)
+                );
+            }
+        }
     }
-}
+
+    }
