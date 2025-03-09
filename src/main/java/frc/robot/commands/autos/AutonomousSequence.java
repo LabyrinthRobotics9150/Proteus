@@ -26,12 +26,10 @@ public class AutonomousSequence extends SequentialCommandGroup {
      */
     public AutonomousSequence(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, ElevatorSubsystem elevator, IntakeSubsystem intake) {
         addCommands(
-            new DriveForwardCommand(drivetrain, 2.0).withTimeout(2)
-
-        /*
-
+            //new DriveForwardCommand(drivetrain, 2.0).withTimeout(2)
+            
             // (3) Hold alignment using right-alignment.
-            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2).andThen(new WaitCommand(0.1)),
+            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2).andThen(new WaitCommand(2)),
 
             new DriveForwardCommand(drivetrain, 1).withTimeout(2),
 
@@ -47,9 +45,6 @@ public class AutonomousSequence extends SequentialCommandGroup {
             // (7) Return to the initial starting pose.
             new DriveForwardCommand(drivetrain, -2.0).withTimeout(2)
             );
-            */
-        );
-        
     }
     
     // Returns true if the vision is aligned (using a threshold on txnc).
