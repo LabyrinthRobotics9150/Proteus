@@ -26,29 +26,14 @@ public class AutonomousSequence extends SequentialCommandGroup {
      */
     public AutonomousSequence(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, ElevatorSubsystem elevator, IntakeSubsystem intake) {
         addCommands(
-            // (1) Capture the initial robot pose.
-            new InstantCommand(() -> initialPose = drivetrain.getState().Pose),
+            new DriveForwardCommand(drivetrain, 2.0).withTimeout(2)
 
-            // (2) Loop until a valid target is aligned.
-            new RepeatUntilCommand(
-                new SequentialCommandGroup(
-                    new AutoAlignCommand(drivetrain, limelight).withTimeout(2),
-                    new ConditionalCommand(
-                        // If not aligned, run a search pattern: drive forward then rotate.
-                        new SequentialCommandGroup(
-                            new DriveForwardCommand(drivetrain, 1.0).withTimeout(2),
-                            new RotateCommand(drivetrain, 45).withTimeout(2)
-                        ),
-                        // Otherwise do nothing.
-                        new InstantCommand(() -> {}),
-                        () -> !isAligned(limelight)
-                    )
-                ),
-                () -> isAligned(limelight)
-            ),
+        /*
 
             // (3) Hold alignment using right-alignment.
-            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2),
+            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2).andThen(new WaitCommand(0.1)),
+
+            new DriveForwardCommand(drivetrain, 1).withTimeout(2),
 
             // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
             new ElevatorRaise(elevator, 3.9).withTimeout(3).andThen(new WaitCommand(0.1)),
@@ -60,8 +45,11 @@ public class AutonomousSequence extends SequentialCommandGroup {
             new ElevatorRaise(elevator, 0).withTimeout(2).andThen(new WaitCommand(0.25)),
 
             // (7) Return to the initial starting pose.
-            new FollowPathCommand(drivetrain, initialPose)
+            new DriveForwardCommand(drivetrain, -2.0).withTimeout(2)
+            );
+            */
         );
+        
     }
     
     // Returns true if the vision is aligned (using a threshold on txnc).
@@ -137,7 +125,7 @@ public class AutonomousSequence extends SequentialCommandGroup {
             Pose2d current = drivetrain.getState().Pose;
             double xOutput = xController.calculate(current.getX(), targetPose.getX());
             double yOutput = yController.calculate(current.getY(), targetPose.getY());
-            drivetrain.setControl(new SwerveRequest.FieldCentric()
+            drivetrain.setControl(new SwerveRequest.RobotCentric()
                     .withVelocityX(xOutput)
                     .withVelocityY(yOutput)
                     .withRotationalRate(0));

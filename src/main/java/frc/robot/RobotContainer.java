@@ -44,15 +44,13 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
   // primary
   IntakeScoreCommand intakeScoreCommand = new IntakeScoreCommand(m_elevator, m_intake);
-  AutoAlignCommand alignRightCommand = new AutoAlignCommand( drivetrain, limelight, true);
-  AutoAlignCommand alignLeftCommand = new AutoAlignCommand(drivetrain, limelight, false);
   
   // secondary
-    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90  );
-    HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
-    HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .8);
+    HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90);
+    HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2.1);
+    HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, .2);
-    HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, 1.2);
+    HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, 1.8);
     HoldAndReturnCommand ballLevel2 = new HoldAndReturnCommand(m_elevator, 2.5);
 
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
@@ -153,11 +151,11 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     // Left Bumper - align left
     m_secondaryController.leftBumper()
-    .whileTrue(alignLeftCommand);
+    .whileTrue(new AutoAlignCommand(drivetrain, limelight, false));
 
     // Right Bumper - align right
     m_secondaryController.rightBumper()
-    .whileTrue(alignRightCommand);
+    .whileTrue(new AutoAlignCommand(drivetrain, limelight, true));
 
     // Right Trigger - manual elevator raise
     //m_primaryController.rightTrigger()
@@ -214,13 +212,16 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     m_primaryController.rightTrigger()
     .whileTrue(intakeScoreCommand);
 
+    m_primaryController.a()
+    .whileTrue(new WheelMoveCommand(m_intake, -.05));
+
     // Rb - Auto-align to right coral spoke
     m_primaryController.rightBumper()
-    .whileTrue(alignRightCommand);
+    .whileTrue(new AutoAlignCommand(drivetrain, limelight, true));
 
     // Lb - Auto-align to left coral spoke
     m_primaryController.leftBumper()
-    .whileTrue(alignLeftCommand);
+    .whileTrue(new AutoAlignCommand(drivetrain, limelight, false));
 
 
     /* SECONDARY */

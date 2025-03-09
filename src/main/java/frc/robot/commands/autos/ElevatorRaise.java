@@ -6,33 +6,31 @@ import frc.robot.subsystems.ElevatorSubsystem;
 
 public class ElevatorRaise extends Command {
     private final ElevatorSubsystem elevator;
-    private final double targetHeight;
+    private double targetHeight;
 
     public ElevatorRaise(ElevatorSubsystem elevator, double height) {
         this.elevator = elevator;
         this.targetHeight = height;
-        addRequirements(elevator);
     }
 
     @Override
     public void initialize() {
-        if (targetHeight > 0.5) {
+        if (targetHeight > .5) {
             RobotContainer.m_slowMode = true;
         }
         elevator.setHeight(targetHeight);
         System.out.println("Moving elevator to: " + targetHeight);
     }
-
+    
     @Override
     public boolean isFinished() {
-        // Continue running to maintain position
-        return false; 
+        return false; // Run until interrupted
     }
-
+    
     @Override
     public void end(boolean interrupted) {
-            if (targetHeight < 0.5) {
+            if (targetHeight > .5) {
                 RobotContainer.m_slowMode = false;
             }
         }
-    }
+}
