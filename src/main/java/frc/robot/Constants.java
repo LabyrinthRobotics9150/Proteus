@@ -21,6 +21,7 @@ public final class Constants {
         // intake
         public static final int kIntakePivotCanId = 1;
         public static final int kIntakeWheelsCanId = 2;
+        public static final int kIntakeFunnelWheelCanId = 6;
 
         // funnel pivot
         public static final int kFunnelPivotCanId = 3;

@@ -15,15 +15,16 @@ import frc.robot.Constants;
 public class IntakeSubsystem extends SubsystemBase {
     public static LaserCan laserCan;
     public static final SparkFlex IntakePivotMotor = new SparkFlex(Constants.OperatorConstants.kIntakePivotCanId, MotorType.kBrushless); 
+    public static final SparkFlex IntakeFunnelWheel = new SparkFlex(Constants.OperatorConstants.kIntakeFunnelWheelCanId, MotorType.kBrushless);
     public static final SparkFlex IntakeWheelsMotor = new SparkFlex(Constants.OperatorConstants.kIntakeWheelsCanId, MotorType.kBrushless);
     private final PIDController pidController = new PIDController(.7, 0, 0);
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
-    public double HOME_POSITION = 0.84;
-    public double BALL_POSITION = 0.38;
+    public double HOME_POSITION = 0.019;
+    public double BALL_POSITION = 0.318;
 
     // (max velocity and acceleration)
-    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.1, 0.05); // Adjust values as needed
+    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.05, 10); // Adjust values as needed
 
     // profile states
     private TrapezoidProfile.State targetState = new TrapezoidProfile.State(HOME_POSITION, 0);
@@ -58,6 +59,7 @@ public class IntakeSubsystem extends SubsystemBase {
         // Use the PID controller to follow the profile
         double output = pidController.calculate(getHeight(), currentState.position);
         IntakePivotMotor.set(output);
+        IntakeFunnelWheel.set(output);
     }
 
     // Set the target height for the pivot
@@ -74,6 +76,7 @@ public class IntakeSubsystem extends SubsystemBase {
     // Stop the pivot motor
     public void stopPivot() {
         IntakePivotMotor.stopMotor();
+        IntakeFunnelWheel.stopMotor();
     }
 
     public double getTargetPosition() {
