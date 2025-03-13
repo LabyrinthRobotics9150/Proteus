@@ -17,14 +17,16 @@ public class IntakeSubsystem extends SubsystemBase {
     public static final SparkFlex IntakePivotMotor = new SparkFlex(Constants.OperatorConstants.kIntakePivotCanId, MotorType.kBrushless); 
     public static final SparkFlex IntakeFunnelWheel = new SparkFlex(Constants.OperatorConstants.kIntakeFunnelWheelCanId, MotorType.kBrushless);
     public static final SparkFlex IntakeWheelsMotor = new SparkFlex(Constants.OperatorConstants.kIntakeWheelsCanId, MotorType.kBrushless);
-    private final PIDController pidController = new PIDController(.7, 0, 0);
+    private final PIDController pidController = new PIDController(1.3, 0, 0);
+    private static boolean scoring = false;
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
-    public double HOME_POSITION = 0.019;
-    public double BALL_POSITION = 0.318;
+    public double HOME_POSITION = 0.851;
+    public double BALL_POSITION = 0.469;
+    public double GROUND_POSITION = .25;
 
     // (max velocity and acceleration)
-    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.05, 10); // Adjust values as needed
+    private final TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(.05, 1); // Adjust values as needed
 
     // profile states
     private TrapezoidProfile.State targetState = new TrapezoidProfile.State(HOME_POSITION, 0);
@@ -59,7 +61,6 @@ public class IntakeSubsystem extends SubsystemBase {
         // Use the PID controller to follow the profile
         double output = pidController.calculate(getHeight(), currentState.position);
         IntakePivotMotor.set(output);
-        IntakeFunnelWheel.set(output);
     }
 
     // Set the target height for the pivot
@@ -76,20 +77,30 @@ public class IntakeSubsystem extends SubsystemBase {
     // Stop the pivot motor
     public void stopPivot() {
         IntakePivotMotor.stopMotor();
-        IntakeFunnelWheel.stopMotor();
     }
 
     public double getTargetPosition() {
         return targetState.position;
     }
 
+    public void intakeScoreBall(boolean scoring) {
+        this.scoring = scoring;
+        if (scoring) {
+            IntakeWheelsMotor.set(.1);
+        } else {
+            IntakeWheelsMotor.set(-.1);
+        }
+    }
+
     // Wheels motor
-    public void moveWheel(double speed) {
+    public void moveWheel(double speed, boolean funnel) {
         IntakeWheelsMotor.set(speed);
+        if (funnel) {IntakeFunnelWheel.set(speed * 6/8);}
     }
 
     public void stopWheel() {
         IntakeWheelsMotor.stopMotor();
+        IntakeFunnelWheel.stopMotor();
     }
 
     public double getEncoderPosition() {

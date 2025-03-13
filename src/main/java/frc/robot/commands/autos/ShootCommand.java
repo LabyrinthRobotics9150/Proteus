@@ -18,7 +18,7 @@ public class ShootCommand extends Command {
 
     @Override
     public void execute() {
-        intake.moveWheel(speed);
+        intake.moveWheel(speed, false);
     }
 
     @Override

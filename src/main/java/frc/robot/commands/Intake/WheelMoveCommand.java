@@ -6,7 +6,7 @@ import frc.robot.subsystems.IntakeSubsystem;
 public class WheelMoveCommand extends Command {
     IntakeSubsystem intake;
     double speed;
-    public WheelMoveCommand(IntakeSubsystem intake, double speed /* drivebase */) {
+    public WheelMoveCommand(IntakeSubsystem intake, double speed) {
         this.intake = intake;
         this.speed = speed;
         addRequirements(intake);
@@ -18,7 +18,7 @@ public class WheelMoveCommand extends Command {
 
     @Override
     public void execute() {
-        intake.moveWheel(speed);
+        intake.moveWheel(speed, true);
     }
 
     @Override

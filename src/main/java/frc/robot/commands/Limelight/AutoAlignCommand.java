@@ -11,23 +11,29 @@ import frc.robot.subsystems.LimelightHelpers.RawFiducial;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.networktables.NetworkTableInstance;
 
 
 public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
 
-    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(2, 10);
+    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(4, 10);
     private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(.05, 10);
+
+    private boolean donewithRotation;
+    private boolean initialY;
 
     
     
     private static ProfiledPIDController rotationalPidController = 
-    new ProfiledPIDController(.3, 0.0, 0.0, Rotationconstraints);
-    private static final ProfiledPIDController xPidController = 
+    new ProfiledPIDController(6, 0.0, 0.0, Rotationconstraints);
+    private static ProfiledPIDController xPidController = 
     new ProfiledPIDController(.7, 0.0, 0.0, xyconstraints);
-    private static final ProfiledPIDController yPidController = 
-    new ProfiledPIDController(.4, 0.0, 0.0, xyconstraints);
+    private static ProfiledPIDController yPidController = 
+    new ProfiledPIDController(1.3, 0.0, 0.0, xyconstraints);
+
+    
     
     // Using a robot-centric control request.
     private static final SwerveRequest.RobotCentric alignRequest = 
@@ -67,6 +73,9 @@ public class AutoAlignCommand extends Command {
         xOffset = 0;
         rOffset = 0;
 
+        donewithRotation = false;
+        initialY = false;
+
         // set requirements
         addRequirements(m_Limelight);
         addRequirements(m_drivetrain);
@@ -80,12 +89,14 @@ public class AutoAlignCommand extends Command {
         // set offsets
         yOffset = 0;
         if (rightAlign) {
-            yOffset = .68;
+            yOffset = .4;
         } else {
-            yOffset = -.68;
+            yOffset = -.4;
         }
         xOffset = 0;
         rOffset = 0;
+        donewithRotation = false;
+        initialY = false;
 
         addRequirements(m_Limelight);
         addRequirements(m_drivetrain);
@@ -93,14 +104,11 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void initialize() {
-        // reset motors
-        rotationalPidController.reset(0);;
-        xPidController.reset(0);
-        yPidController.reset(0);
         // set goals of pid controllers
         rotationalPidController.setGoal(rOffset);
         xPidController.setGoal(xOffset);
-        yPidController.setGoal(yOffset);
+        yPidController.setGoal(0);
+        donewithRotation = false;
 
         try {
             // Choose the closest fiducial as the target.
@@ -114,7 +122,7 @@ public class AutoAlignCommand extends Command {
     public void execute() {
         fiducial = new RawFiducial(tagID, outputY, outputX, outputRotation, MIN_ROTATION_OUTPUT_DEG, MIN_LATERAL_OUTPUT, MIN_DRIVE_X_OUTPUT);
         // try new method
-        double[] postions = LimelightHelpers.getBotPose_TargetSpace("");
+        double tx = NetworkTableInstance.getDefault().getTable("limelight").getEntry("tx").getDouble(0);        
         try {
             fiducial = m_Limelight.getFiducialWithId(tagID);
             boolean allowed = false;
@@ -132,52 +140,33 @@ public class AutoAlignCommand extends Command {
             end(false);
             return;
     }
-        // recalculate velocitys each loop
-        outputX = 0.0;
-        outputY = 0.0;
-        outputRotation = 0.0;
 
-        // new stuffs
-        outputX = xPidController.calculate(postions[2]);
-        outputY = -yPidController.calculate(postions[0]);
-        outputRotation = -rotationalPidController.calculate(postions[4]);
+    // recalculate velocitys each loop
+    outputX = 0.0;
+    outputY = 0.0;
+    outputRotation = 0.0;
 
-
-        // y stuff
-
-        //double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-        //lateralError += yOffset;
-        //outputY = yPidController.calculate(lateralError);
+        // rotate stuff
+        if (rotationalPidController.atGoal()) {}
+        outputRotation = rotationalPidController.calculate(Units.degreesToRadians(tx));   
 
 
-        // rotation stuff
-
-        //double rotationErrorRad = -Units.degreesToRadians(fiducial.txnc);
-
-        // Always compute PID output based on current error.
-        //outputRotation = rotationalPidController.calculate(rotationErrorRad);         
-
+        double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+        lateralError += yOffset;
+        outputY = yPidController.calculate(lateralError);
+    
         // x stuff
-        //outputX = -xPidController.calculate(fiducial.distToRobot);
+        outputX = -xPidController.calculate(fiducial.distToRobot);
 
 
         // Send the calculated control outputs.
         m_drivetrain.setControl(
             alignRequest
-                .withRotationalRate(outputRotation)
                 .withVelocityX(outputX)
                 .withVelocityY(outputY)
+                .withRotationalRate(outputRotation)
         );
-
-
-        
-        // Publish for debugging.
-        SmartDashboard.putNumber("txnc (deg)", fiducial.txnc);
-        SmartDashboard.putNumber("distToRobot (m)", fiducial.distToRobot);
-        SmartDashboard.putNumber("Applied rotationalRate (rad/s)", outputRotation);
-        SmartDashboard.putNumber("Applied velocityX (m/s)", outputX);
-        SmartDashboard.putNumber("Applied velocityY (m/s)", outputY);
-    }
+}
     
     @Override
     public boolean isFinished() {
@@ -197,6 +186,8 @@ public class AutoAlignCommand extends Command {
                         .withVelocityX(outputX)
                 );
             }
+        } else {
+            m_drivetrain.setControl(idleRequest);
         }
     }
 

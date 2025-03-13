@@ -16,8 +16,11 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Constants.OperatorConstants;
 import frc.robot.commands.Elevator.HoldAndReturnCommand;
 import frc.robot.commands.Intake.BallCommand;
+import frc.robot.commands.Intake.BallScoreCommand;
+import frc.robot.commands.Intake.IntakeBall;
 import frc.robot.commands.Intake.IntakeScoreCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
+import frc.robot.commands.Limelight.AlignToReefTagRelative;
 import frc.robot.commands.Limelight.AutoAlignCommand;
 import frc.robot.commands.autos.AutonomousSequence;
 import frc.robot.generated.TunerConstants;
@@ -33,7 +36,7 @@ public class RobotContainer {
   private final IntakeSubsystem m_intake = new IntakeSubsystem(0);
   private final VisionSubsystem limelight = new VisionSubsystem();
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-  SendableChooser autonomouChooser = new SendableChooser<>();
+  SendableChooser autonomouChooser = new SendableChooser<>(); // you should implement this
 
   private final CommandXboxController m_primaryController =
   new CommandXboxController(OperatorConstants.kDriverControllerPort);
@@ -56,6 +59,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
     WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.2);
     BallCommand ballCommand = new BallCommand(m_intake);
+    BallScoreCommand ballScoreCommand = new BallScoreCommand(m_intake, m_elevator);
 
   
       private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -202,16 +206,21 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     // Y - reset gyro
     m_primaryController.y().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
 
-    // slow mode
+    // Left Trigger - slow mode
     m_primaryController.leftTrigger()
     .whileTrue(Commands.runOnce(() -> m_slowMode = true))
     .onFalse(Commands.runOnce(() -> m_slowMode = false));
 
 
-    // Right Trigger - intake / outtake dependant on where the pivot arm is
+    // Right Trigger - intake / outtake dependant on where the elevator is
     m_primaryController.rightTrigger()
     .whileTrue(intakeScoreCommand);
 
+    // Left Stick - intake ball from ground
+    m_primaryController.leftStick()
+    .whileTrue(new IntakeBall(m_intake));
+    
+    // A - reverse intake wheels in case coral gets stuck
     m_primaryController.a()
     .whileTrue(new WheelMoveCommand(m_intake, -.05));
 
@@ -246,12 +255,16 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     // Ball related commands
 
-    // B - Ball command
+    // LT - Ball command
     m_secondaryController.leftTrigger()
     .whileTrue(ballCommand);
 
+    // RT - Ball score command
+    m_secondaryController.rightTrigger()
+    .whileTrue(ballScoreCommand);
+
     /*
-     * While right trigger is held, redefine the 
+     * While left trigger is held, redefine the 
      * elevator positions to ball descore commands
      */
     m_secondaryController.x() 
@@ -262,6 +275,12 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     .and(m_secondaryController.leftBumper())
     .whileTrue(ballLevel1);
 
+    // temporary new autoalign testing
+    m_secondaryController.leftBumper()
+    .whileTrue(new AlignToReefTagRelative(false, drivetrain));
+
+    m_secondaryController.rightBumper()
+    .whileTrue(new AlignToReefTagRelative(true, drivetrain));
     }
 }
 

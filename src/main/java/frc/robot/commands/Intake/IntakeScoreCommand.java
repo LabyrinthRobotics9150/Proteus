@@ -30,11 +30,11 @@ public class IntakeScoreCommand extends Command {
         this.intakeSubsystem = intakeSubsystem;
         this.heightThreshold = 0.10;
         this.normalSpeed = 0.1;
-        this.slowSpeed = 0.03;
-        this.reverseSpeed = 0.03; 
-        this.reverseRotations = 1.0;
+        this.slowSpeed = 0.1;
+        this.reverseSpeed = 0.1; 
+        this.reverseRotations = .45;
         this.scoringSpeed = 0.3;
-        this.detectionThresholdMm = 20;
+        this.detectionThresholdMm = 100;
         elevatorHeight = elevatorSubsystem.getHeight();
 
         addRequirements(intakeSubsystem);
@@ -59,21 +59,22 @@ public class IntakeScoreCommand extends Command {
             switch (currentState) {
                 case INIT:
                     LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
+                    System.out.println(meas.distance_mm);
                     if (isObjectDetected(meas)) {
-                        intakeSubsystem.moveWheel(slowSpeed); 
+                        intakeSubsystem.moveWheel(slowSpeed, false); 
                         currentState = State.DETECTED_OBJECT;
                     } else {
-                        intakeSubsystem.moveWheel(normalSpeed);
+                        intakeSubsystem.moveWheel(normalSpeed, true);
                     }
                     break;
 
                 case DETECTED_OBJECT:
                     // Keep running slow speed while object is detected
-                    intakeSubsystem.moveWheel(slowSpeed); 
+                    intakeSubsystem.moveWheel(slowSpeed, false); 
 
                     LaserCan.Measurement newMeas = intakeSubsystem.laserCan.getMeasurement();
                     if (!isObjectDetected(newMeas)) {
-                        intakeSubsystem.moveWheel(-reverseSpeed); // Reverse direction
+                        intakeSubsystem.moveWheel(-reverseSpeed, false); // Reverse direction
                         initialEncoderPosition = intakeSubsystem.getEncoderPosition(); // Reset encoder position
                         currentState = State.REVERSING;
                     }
@@ -89,11 +90,12 @@ public class IntakeScoreCommand extends Command {
                     break;
             }
         } else {
-            intakeSubsystem.moveWheel(scoringSpeed);
+            intakeSubsystem.moveWheel(scoringSpeed, false);
         }
     }
 
     private boolean isObjectDetected(LaserCan.Measurement meas) {
+        System.out.println(meas.distance_mm);
         return meas != null 
             && meas.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT
             && meas.distance_mm < detectionThresholdMm;
