@@ -22,7 +22,7 @@ public class IntakeBall extends Command {
         // while button is pressed, move pivot to ground intake pos
         intake.setHeight(intake.GROUND_POSITION);
         // suck ball in with wheels
-        intake.intakeScoreBall(false);
+        intake.intakeScoreBall(true, false);
     }
 
     @Override

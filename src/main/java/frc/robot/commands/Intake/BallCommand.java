@@ -14,17 +14,18 @@ public class BallCommand extends Command {
     @Override
     public void initialize() {
         intake.setHeight(intake.BALL_POSITION);
+        intake.intakeScoreBall(false, false);
     }
 
     @Override
     public void execute() {
-        intake.moveWheel(-.1, false);
+        intake.moveWheel(-.2, false);
     }
 
     @Override
     public void end(boolean interrupted) {
         intake.setHeight(intake.HOME_POSITION);
-        intake.intakeScoreBall(false);
+        intake.stopWheel();
     }
 
     @Override

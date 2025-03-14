@@ -20,7 +20,6 @@ import frc.robot.commands.Intake.BallScoreCommand;
 import frc.robot.commands.Intake.IntakeBall;
 import frc.robot.commands.Intake.IntakeScoreCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
-import frc.robot.commands.Limelight.AlignToReefTagRelative;
 import frc.robot.commands.Limelight.AutoAlignCommand;
 import frc.robot.commands.autos.AutonomousSequence;
 import frc.robot.generated.TunerConstants;
@@ -51,15 +50,14 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   // secondary
     HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90);
     HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
-    HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .6);
+    HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .65);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, .2);
-    HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, 1.8);
+    HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, .8);
     HoldAndReturnCommand ballLevel2 = new HoldAndReturnCommand(m_elevator, 2.5);
 
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
     WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.2);
     BallCommand ballCommand = new BallCommand(m_intake);
-    BallScoreCommand ballScoreCommand = new BallScoreCommand(m_intake, m_elevator);
 
   
       private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -259,9 +257,13 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     m_secondaryController.leftTrigger()
     .whileTrue(ballCommand);
 
-    // RT - Ball score command
+    // RT - Ball score high command
     m_secondaryController.rightTrigger()
-    .whileTrue(ballScoreCommand);
+    .whileTrue(new BallScoreCommand(m_intake, m_elevator, false));
+
+    // RT - Ball score processor command
+    m_secondaryController.rightBumper()
+    .whileTrue(new BallScoreCommand(m_intake, m_elevator, true));
 
     /*
      * While left trigger is held, redefine the 
@@ -272,15 +274,8 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     .whileTrue(ballLevel2);
 
     m_secondaryController.b()
-    .and(m_secondaryController.leftBumper())
+    .and(m_secondaryController.leftTrigger())
     .whileTrue(ballLevel1);
-
-    // temporary new autoalign testing
-    m_secondaryController.leftBumper()
-    .whileTrue(new AlignToReefTagRelative(false, drivetrain));
-
-    m_secondaryController.rightBumper()
-    .whileTrue(new AlignToReefTagRelative(true, drivetrain));
     }
 }
 

@@ -27,11 +27,11 @@ public class AutoAlignCommand extends Command {
     
     
     private static ProfiledPIDController rotationalPidController = 
-    new ProfiledPIDController(6, 0.0, 0.0, Rotationconstraints);
+    new ProfiledPIDController(7, 0.0, 0.0, Rotationconstraints);
     private static ProfiledPIDController xPidController = 
     new ProfiledPIDController(.7, 0.0, 0.0, xyconstraints);
     private static ProfiledPIDController yPidController = 
-    new ProfiledPIDController(1.3, 0.0, 0.0, xyconstraints);
+    new ProfiledPIDController(2, 0.0, 0.0, xyconstraints);
 
     
     
@@ -89,9 +89,9 @@ public class AutoAlignCommand extends Command {
         // set offsets
         yOffset = 0;
         if (rightAlign) {
-            yOffset = .4;
+            yOffset = .29;
         } else {
-            yOffset = -.4;
+            yOffset = -.29;
         }
         xOffset = 0;
         rOffset = 0;
@@ -104,15 +104,18 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void initialize() {
+
+        tagID = -1;
+        donewithRotation = false;
         // set goals of pid controllers
-        rotationalPidController.setGoal(rOffset);
+        rotationalPidController.setGoal(0);
         xPidController.setGoal(xOffset);
         yPidController.setGoal(0);
-        donewithRotation = false;
 
         try {
             // Choose the closest fiducial as the target.
             tagID = m_Limelight.getClosestFiducial().id;
+            System.out.println(tagID);
         } catch (VisionSubsystem.NoSuchTargetException e) {
             tagID = -1;
         }
@@ -120,9 +123,11 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void execute() {
+        SmartDashboard.putBoolean("doneWithRotation", donewithRotation);
+        SmartDashboard.putData(rotationalPidController);
+        SmartDashboard.putNumber("rotation error", rotationalPidController.getPositionError());;
         fiducial = new RawFiducial(tagID, outputY, outputX, outputRotation, MIN_ROTATION_OUTPUT_DEG, MIN_LATERAL_OUTPUT, MIN_DRIVE_X_OUTPUT);
-        // try new method
-        double tx = NetworkTableInstance.getDefault().getTable("limelight").getEntry("tx").getDouble(0);        
+
         try {
             fiducial = m_Limelight.getFiducialWithId(tagID);
             boolean allowed = false;
@@ -141,44 +146,47 @@ public class AutoAlignCommand extends Command {
             return;
     }
 
-    // recalculate velocitys each loop
-    outputX = 0.0;
-    outputY = 0.0;
-    outputRotation = 0.0;
+        // recalculate velocitys each loop
+        outputX = 0.0;
+        outputY = 0.0;
+        outputRotation = 0.0;
 
-        // rotate stuff
-        if (rotationalPidController.atGoal()) {}
-        outputRotation = rotationalPidController.calculate(Units.degreesToRadians(tx));   
+            // rotate stuff
+            if (!donewithRotation) {
+                System.out.println("not done with rotation!");
+                if (rotationalPidController.atGoal()) {donewithRotation = true; System.out.println("set true here");}
+                outputRotation = rotationalPidController.calculate(Units.degreesToRadians(fiducial.txnc), 0);
+            } else {
+            double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+            lateralError += yOffset;
+            outputY = yPidController.calculate(lateralError);
+        
+            // x stuff
+            outputX = -xPidController.calculate(fiducial.distToRobot);
 
-
-        double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
-        lateralError += yOffset;
-        outputY = yPidController.calculate(lateralError);
-    
-        // x stuff
-        outputX = -xPidController.calculate(fiducial.distToRobot);
-
-
-        // Send the calculated control outputs.
-        m_drivetrain.setControl(
-            alignRequest
-                .withVelocityX(outputX)
-                .withVelocityY(outputY)
-                .withRotationalRate(outputRotation)
-        );
-}
+            }
+        
+            // Send the calculated control outputs.
+            m_drivetrain.setControl(
+                alignRequest
+                    .withVelocityX(outputX)
+                    .withVelocityY(outputY)
+                    .withRotationalRate(outputRotation)
+            );
+    }
     
     @Override
     public boolean isFinished() {
         if (xPidController.atGoal()) {
             m_drivetrain.setControl(idleRequest);
-            System.out.println("finished");
         }
         return xPidController.atGoal();
     }
     
     @Override
     public void end(boolean interrupted) {
+        tagID = -1;
+        donewithRotation = false;
         if (!interrupted) {
             if (!xPidController.atGoal()) {
                 m_drivetrain.setControl(
