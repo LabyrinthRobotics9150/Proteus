@@ -22,7 +22,6 @@ import frc.robot.commands.Intake.IntakeScoreCommand;
 import frc.robot.commands.Intake.WheelMoveCommand;
 import frc.robot.commands.Limelight.AutoAlignCommand;
 import frc.robot.commands.autos.AutonomousSequence;
-import frc.robot.commands.autos.CenterAuto;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
@@ -282,7 +281,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     public Command getAutonomousCommand() {
       // incorporate the current autonomous command
-        return new CenterAuto(drivetrain, limelight, m_elevator, m_intake);
+        return new AutonomousSequence(drivetrain, limelight, m_elevator, m_intake);
     }
 
 }

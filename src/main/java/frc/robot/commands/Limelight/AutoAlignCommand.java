@@ -16,7 +16,7 @@ public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
 
-    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(.0000000000000000000000000005, .00000000000000000000000005);
+    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(.00005, .005);
     private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(.03, 5);
 
     private boolean doneWithInitial;
@@ -26,7 +26,7 @@ public class AutoAlignCommand extends Command {
     
     
     private ProfiledPIDController rotationalPidController = 
-    new ProfiledPIDController(6, 0.0, 0.0, Rotationconstraints);
+    new ProfiledPIDController(9, 0.0, 0.0, Rotationconstraints);
     private ProfiledPIDController xPidController = 
     new ProfiledPIDController(.7, 0.0, 0.0, xyconstraints);
     private ProfiledPIDController yPidController = 
@@ -114,7 +114,7 @@ public class AutoAlignCommand extends Command {
         rotationalPidController.setGoal(0);
         xPidController.setGoal(xOffset);
         yPidController.setGoal(0);
-        rotationalPidController.setTolerance(Math.toRadians(.8));
+        rotationalPidController.setTolerance(Math.toRadians(1.5));
         try {
             // Choose the closest fiducial as the target.
             tagID = m_Limelight.getClosestFiducial().id;
