@@ -50,7 +50,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   
   // secondary
     HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90);
-    HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2);
+    HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2.1);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .8);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, .2);
     HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, .8);
@@ -58,9 +58,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
     WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.2);
-    BallCommand ballCommand = new BallCommand(m_intake, true);
-    BallCommand ballCommandnoBack = new BallCommand(m_intake, false);
-
+    BallCommand ballCommand = new BallCommand(m_intake);
 
   
       private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -223,7 +221,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     
     // A - reverse intake wheels in case coral gets stuck
     m_primaryController.a()
-    .whileTrue(new WheelMoveCommand(m_intake, -.1));
+    .whileTrue(new WheelMoveCommand(m_intake, -.05));
 
     // Rb - Auto-align to right coral spoke
     m_primaryController.rightBumper()
@@ -267,9 +265,6 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     // RT - Ball score processor command
     m_secondaryController.rightBumper()
     .whileTrue(new BallScoreCommand(m_intake, m_elevator, true));
-
-    m_secondaryController.leftBumper()
-    .whileTrue(ballCommandnoBack);
 
     /*
      * While left trigger is held, redefine the 
