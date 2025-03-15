@@ -100,7 +100,7 @@ public class IntakeSubsystem extends SubsystemBase {
     // Wheels motor
     public void moveWheel(double speed, boolean funnel) {
         IntakeWheelsMotor.set(speed);
-        if (funnel) {IntakeFunnelWheel.set(speed * 6/8);}
+        if (funnel) {IntakeFunnelWheel.set(speed * 12/8);}
     }
 
     public void stopWheel() {

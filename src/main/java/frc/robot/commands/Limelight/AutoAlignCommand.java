@@ -18,17 +18,17 @@ public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
 
-    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(1, 5);
+    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(.00005, .005);
     private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(.03, 5);
 
     private boolean doneWithInitial;
     private boolean initialY;
-    private boolean initialR;
+    private int initialR;
 
     
     
     private ProfiledPIDController rotationalPidController = 
-    new ProfiledPIDController(7, 0.0, 0.0, Rotationconstraints);
+    new ProfiledPIDController(9, 0.0, 0.0, Rotationconstraints);
     private ProfiledPIDController xPidController = 
     new ProfiledPIDController(.7, 0.0, 0.0, xyconstraints);
     private ProfiledPIDController yPidController = 
@@ -76,7 +76,7 @@ public class AutoAlignCommand extends Command {
 
         doneWithInitial = false;
         initialY = false;
-        initialR = false;
+        initialR = 0;
 
         // set requirements
         addRequirements(m_Limelight);
@@ -99,7 +99,7 @@ public class AutoAlignCommand extends Command {
         rOffset = 0;
         doneWithInitial = false;
         initialY = false;
-        initialR = false;
+        initialR = 0;
 
         addRequirements(m_Limelight);
         addRequirements(m_drivetrain);
@@ -111,12 +111,12 @@ public class AutoAlignCommand extends Command {
         tagID = -1;
         doneWithInitial = false;
         initialY = false;
-        initialR = false;
+        initialR = 0;
         // set goals of pid controllers
         rotationalPidController.setGoal(0);
         xPidController.setGoal(xOffset);
         yPidController.setGoal(0);
-        rotationalPidController.setTolerance(Math.toRadians(.5));
+        rotationalPidController.setTolerance(Math.toRadians(1.5));
         try {
             // Choose the closest fiducial as the target.
             tagID = m_Limelight.getClosestFiducial().id;
@@ -159,12 +159,12 @@ public class AutoAlignCommand extends Command {
             // rotate stuff
             if (!doneWithInitial) {
                 System.out.println("initialR: " + initialR + " tx: " + fiducial.txnc);
-                if (!initialR) {
+                if (initialR < 4) {
                     outputRotation = rotationalPidController.calculate(Units.degreesToRadians(fiducial.txnc));
-                    if (rotationalPidController.atGoal()) {initialR = true; System.out.println("GOAL VALUE: " + Units.degreesToRadians(fiducial.txnc));}
+                    if (rotationalPidController.atGoal()) {initialR += 1; System.out.println("GOAL VALUE: " + Units.degreesToRadians(fiducial.txnc));}
                 }
 
-                if (!initialY && initialR) {
+                if (!initialY && initialR >= 4) {
                     // lateral error
                     double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
                     outputY = yPidController.calculate(lateralError);
@@ -206,7 +206,7 @@ public class AutoAlignCommand extends Command {
         tagID = -1;
         doneWithInitial = false;
         initialY = false;
-        initialR = false;
+        initialR = 0;
         System.out.println("end command");
         if (!interrupted) {
             if (!xPidController.atGoal()) {
