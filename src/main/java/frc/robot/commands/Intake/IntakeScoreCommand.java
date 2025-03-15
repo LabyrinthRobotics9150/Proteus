@@ -90,7 +90,7 @@ public class IntakeScoreCommand extends Command {
                     break;
             }
         } else {
-            if (elevatorHeight <= .2 ) {scoringSpeed = .05; intakeSubsystem.setHeight(intakeSubsystem.L1_POSITION);}
+            if (elevatorHeight <= .2 ) {scoringSpeed = .1; intakeSubsystem.setHeight(intakeSubsystem.L1_POSITION);}
             intakeSubsystem.moveWheel(scoringSpeed, false);
         }
     }
@@ -104,6 +104,7 @@ public class IntakeScoreCommand extends Command {
 
     @Override
     public boolean isFinished() {
+        intakeSubsystem.setHeight(intakeSubsystem.HOME_POSITION);
         if (isScoringMode) {
             return false;
         } else {

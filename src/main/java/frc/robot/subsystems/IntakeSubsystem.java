@@ -24,7 +24,7 @@ public class IntakeSubsystem extends SubsystemBase {
     public final double HOME_POSITION = 0.851;
     public final double BALL_POSITION = 0.469;
     public final double GROUND_POSITION = .38;
-    public final double L1_POSITION = .5; 
+    public final double L1_POSITION = .4; 
 
     // (max velocity and acceleration)
     public static TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(3, 5); // Adjust values as needed
@@ -91,6 +91,7 @@ public class IntakeSubsystem extends SubsystemBase {
                 setHeight(BALL_POSITION);
                 IntakeWheelsMotor.set(.05);
             } else {
+                System.out.println("setting home position");
                 setHeight(HOME_POSITION);
                 IntakeWheelsMotor.set(.2);
             }
