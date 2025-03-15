@@ -5,13 +5,11 @@ import com.ctre.phoenix6.swerve.SwerveModule.DriveRequestType;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
-import frc.robot.subsystems.LimelightHelpers;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.LimelightHelpers.RawFiducial;
 import edu.wpi.first.math.controller.ProfiledPIDController;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.networktables.NetworkTableInstance;
 
 
 public class AutoAlignCommand extends Command {

@@ -21,9 +21,10 @@ public class IntakeSubsystem extends SubsystemBase {
     private static boolean scoring = false;
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
-    public double HOME_POSITION = 0.851;
-    public double BALL_POSITION = 0.469;
-    public double GROUND_POSITION = .38;
+    public final double HOME_POSITION = 0.851;
+    public final double BALL_POSITION = 0.469;
+    public final double GROUND_POSITION = .38;
+    public final double L1_POSITION = .5; 
 
     // (max velocity and acceleration)
     public static TrapezoidProfile.Constraints constraints = new TrapezoidProfile.Constraints(3, 5); // Adjust values as needed
@@ -90,6 +91,7 @@ public class IntakeSubsystem extends SubsystemBase {
                 setHeight(BALL_POSITION);
                 IntakeWheelsMotor.set(.05);
             } else {
+                setHeight(HOME_POSITION);
                 IntakeWheelsMotor.set(.2);
             }
         } else {

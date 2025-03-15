@@ -69,7 +69,7 @@ public class VisionSubsystem extends SubsystemBase {
     throw new NoSuchTargetException("Can't find ID: " + id);
   }
 
-public RawFiducial getFiducialWithId(int id, boolean verbose) {//Debug
+public RawFiducial getFiducialWithId(int id, boolean verbose) {
   StringBuilder availableIds = new StringBuilder();
 
   for (RawFiducial fiducial : fiducials) {

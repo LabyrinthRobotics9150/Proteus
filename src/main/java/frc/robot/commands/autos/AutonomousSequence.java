@@ -28,10 +28,11 @@ public class AutonomousSequence extends SequentialCommandGroup {
      */
     public AutonomousSequence(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, ElevatorSubsystem elevator, IntakeSubsystem intake) {
         addCommands(
-            //new DriveForwardCommand(drivetrain, 2.0).withTimeout(2)
+            // drive forward so close enough for auto-align
+            new DriveForwardCommand(drivetrain, 1.0).withTimeout(2),
             
             // (3) Hold alignment using right-alignment.
-            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2).andThen(new WaitCommand(5)),
+            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(2).andThen(new WaitCommand(1)),
 
             // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
             new ElevatorRaise(elevator, 3.9).withTimeout(1).andThen(new WaitCommand(0.1)),
@@ -41,6 +42,8 @@ public class AutonomousSequence extends SequentialCommandGroup {
 
             // (6) Lower the elevator back to 0.
             new ElevatorRaise(elevator, 0).withTimeout(2).andThen(new WaitCommand(0.25)),
+
+            /* OR, autoalign barge */
 
             // (7) Return to the initial starting pose.
             new DriveForwardCommand(drivetrain, -2.0).withTimeout(2)
