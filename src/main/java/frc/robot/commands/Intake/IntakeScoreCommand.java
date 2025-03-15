@@ -58,14 +58,18 @@ public class IntakeScoreCommand extends Command {
         if (!isScoringMode) {
             switch (currentState) {
                 case INIT:
+                try {
                     LaserCan.Measurement meas = intakeSubsystem.laserCan.getMeasurement();
-                    System.out.println(meas.distance_mm);
                     if (isObjectDetected(meas)) {
                         intakeSubsystem.moveWheel(slowSpeed, false); 
                         currentState = State.DETECTED_OBJECT;
                     } else {
                         intakeSubsystem.moveWheel(normalSpeed, true);
                     }
+                } catch (Exception e) {
+                    return;
+                }
+
                     break;
 
                 case DETECTED_OBJECT:
@@ -96,7 +100,6 @@ public class IntakeScoreCommand extends Command {
     }
 
     private boolean isObjectDetected(LaserCan.Measurement meas) {
-        System.out.println(meas.distance_mm);
         return meas != null 
             && meas.status == LaserCan.LASERCAN_STATUS_VALID_MEASUREMENT
             && meas.distance_mm < detectionThresholdMm;

@@ -5,9 +5,11 @@ import frc.robot.subsystems.IntakeSubsystem;
 
 public class BallCommand extends Command {
     private final IntakeSubsystem intake;
+    boolean scoring;
 
-    public BallCommand(IntakeSubsystem intake) {
+    public BallCommand(IntakeSubsystem intake, boolean scoring) {
         this.intake = intake;
+        this.scoring = scoring;
         addRequirements(intake);
     }
 
@@ -24,7 +26,9 @@ public class BallCommand extends Command {
 
     @Override
     public void end(boolean interrupted) {
-        intake.setHeight(intake.HOME_POSITION);
+        if (!scoring) {
+            intake.setHeight(intake.HOME_POSITION);
+        }
         intake.stopWheel();
     }
 

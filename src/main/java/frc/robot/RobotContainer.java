@@ -49,7 +49,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
   
   // secondary
     HoldAndReturnCommand level4Command = new HoldAndReturnCommand(m_elevator, 3.90);
-    HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2.1);
+    HoldAndReturnCommand level3Command = new HoldAndReturnCommand(m_elevator, 2.0);
     HoldAndReturnCommand level2Command = new HoldAndReturnCommand(m_elevator, .8);
     HoldAndReturnCommand level1Command = new HoldAndReturnCommand(m_elevator, .2);
     HoldAndReturnCommand ballLevel1 = new HoldAndReturnCommand(m_elevator, .8);
@@ -57,7 +57,6 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     WheelMoveCommand wheelMoveCommand = new WheelMoveCommand(m_intake, .2);
     WheelMoveCommand wheelMoveReverseCommand = new WheelMoveCommand(m_intake, -.2);
-    BallCommand ballCommand = new BallCommand(m_intake);
 
   
       private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
@@ -193,8 +192,8 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     .whileTrue(level1Command);
 
     // B - Ball command
-    m_primaryController.b()
-    .whileTrue(ballCommand);
+    //m_primaryController.b()
+    //.whileTrue(ballCommand);
 
     m_primaryController.rightTrigger()
     .whileTrue(intakeScoreCommand);
@@ -216,7 +215,7 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     // Left Stick - intake ball from ground
     m_primaryController.leftStick()
-    .whileTrue(new IntakeBall(m_intake));
+    .whileTrue(new IntakeBall(m_intake, true, false));
     
     // A - reverse intake wheels in case coral gets stuck
     m_primaryController.a()
@@ -255,9 +254,13 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
 
     // LT - Ball command
     m_secondaryController.leftTrigger()
-    .whileTrue(ballCommand);
+    .whileTrue(new BallCommand(m_intake, false));
 
-    // RT - Ball score high command
+    // LB - Ball command for lt
+    m_secondaryController.leftBumper()
+    .whileTrue(new BallCommand(m_intake, true));
+
+    // RT - Ball score high command,
     m_secondaryController.rightTrigger()
     .whileTrue(new BallScoreCommand(m_intake, m_elevator, false));
 

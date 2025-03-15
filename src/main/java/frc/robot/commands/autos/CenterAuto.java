@@ -14,7 +14,7 @@ import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import java.util.function.BooleanSupplier;
 
-public class AutonomousSequence extends SequentialCommandGroup {
+public class CenterAuto extends SequentialCommandGroup {
 
     private Pose2d initialPose;
     
@@ -26,25 +26,21 @@ public class AutonomousSequence extends SequentialCommandGroup {
      * @param elevator   the elevator subsystem
      * @param intake     the intake subsystem
      */
-    public AutonomousSequence(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, ElevatorSubsystem elevator, IntakeSubsystem intake) {
-        addCommands(
-            // drive forward so close enough for auto-align
-            new DriveForwardCommand(drivetrain, 4.0).withTimeout(2),
-            
+    public CenterAuto(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, ElevatorSubsystem elevator, IntakeSubsystem intake) {
+        addCommands(        
             // (3) Hold alignment using right-alignment.
-            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(5).andThen(new WaitCommand(1)),
+            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(4).andThen(new WaitCommand(1)),
 
             // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
             new ElevatorRaise(elevator, 3.9).withTimeout(1).andThen(new WaitCommand(0.1)),
 
             // (5) Run the shoot command (spin intake wheels at 0.5 speed) for 2 seconds.
-            new ShootCommand(intake, 0.3).withTimeout(1),
+            new ShootCommand(intake, 0.5).withTimeout(1),
 
             // (6) Lower the elevator back to 0.
             new ElevatorRaise(elevator, 0).withTimeout(2).andThen(new WaitCommand(0.25))
 
             /* OR, autoalign barge */
-
             );
     }
     

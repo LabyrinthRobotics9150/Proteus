@@ -114,7 +114,7 @@ public class AutoAlignCommand extends Command {
         rotationalPidController.setGoal(0);
         xPidController.setGoal(xOffset);
         yPidController.setGoal(0);
-        rotationalPidController.setTolerance(Math.toRadians(1.5));
+        rotationalPidController.setTolerance(Math.toRadians(2.0));
         try {
             // Choose the closest fiducial as the target.
             tagID = m_Limelight.getClosestFiducial().id;

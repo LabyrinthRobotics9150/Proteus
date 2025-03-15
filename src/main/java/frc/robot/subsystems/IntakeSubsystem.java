@@ -55,7 +55,11 @@ public class IntakeSubsystem extends SubsystemBase {
     @Override
     public void periodic() {
         // Periodically get the latest measurement from the LaserCAN
-        LaserCan.Measurement measurement = laserCan.getMeasurement();
+        try {
+            LaserCan.Measurement measurement = laserCan.getMeasurement();
+        } catch (Exception e){
+            
+        }
         // Update the current state based on the profile
         currentState = profile.calculate(timer.get(), currentState, targetState);
 
