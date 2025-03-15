@@ -23,7 +23,8 @@ public class Robot extends TimedRobot {
     m_robotContainer = new RobotContainer();
     //DataLogManager.start();
     //DriverStation.startDataLog(DataLogManager.getLog());
-    SignalLogger.enableAutoLogging(false);
+    //SignalLogger.enableAutoLogging(false);
+    SignalLogger.setPath("/media/sda1/ctre-logs/");
   }
 
   @Override

@@ -18,19 +18,20 @@ public class AutoAlignCommand extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
 
-    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(4, 10);
-    private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(.05, 10);
+    private static TrapezoidProfile.Constraints Rotationconstraints = new TrapezoidProfile.Constraints(1, 5);
+    private static TrapezoidProfile.Constraints xyconstraints = new TrapezoidProfile.Constraints(.03, 5);
 
-    private boolean donewithRotation;
+    private boolean doneWithInitial;
     private boolean initialY;
+    private boolean initialR;
 
     
     
-    private static ProfiledPIDController rotationalPidController = 
+    private ProfiledPIDController rotationalPidController = 
     new ProfiledPIDController(7, 0.0, 0.0, Rotationconstraints);
-    private static ProfiledPIDController xPidController = 
+    private ProfiledPIDController xPidController = 
     new ProfiledPIDController(.7, 0.0, 0.0, xyconstraints);
-    private static ProfiledPIDController yPidController = 
+    private ProfiledPIDController yPidController = 
     new ProfiledPIDController(2, 0.0, 0.0, xyconstraints);
 
     
@@ -73,8 +74,9 @@ public class AutoAlignCommand extends Command {
         xOffset = 0;
         rOffset = 0;
 
-        donewithRotation = false;
+        doneWithInitial = false;
         initialY = false;
+        initialR = false;
 
         // set requirements
         addRequirements(m_Limelight);
@@ -95,8 +97,9 @@ public class AutoAlignCommand extends Command {
         }
         xOffset = 0;
         rOffset = 0;
-        donewithRotation = false;
+        doneWithInitial = false;
         initialY = false;
+        initialR = false;
 
         addRequirements(m_Limelight);
         addRequirements(m_drivetrain);
@@ -106,12 +109,14 @@ public class AutoAlignCommand extends Command {
     public void initialize() {
 
         tagID = -1;
-        donewithRotation = false;
+        doneWithInitial = false;
+        initialY = false;
+        initialR = false;
         // set goals of pid controllers
         rotationalPidController.setGoal(0);
         xPidController.setGoal(xOffset);
         yPidController.setGoal(0);
-
+        rotationalPidController.setTolerance(Math.toRadians(.5));
         try {
             // Choose the closest fiducial as the target.
             tagID = m_Limelight.getClosestFiducial().id;
@@ -123,7 +128,7 @@ public class AutoAlignCommand extends Command {
     
     @Override
     public void execute() {
-        SmartDashboard.putBoolean("doneWithRotation", donewithRotation);
+        SmartDashboard.putBoolean("doneWithInitial", doneWithInitial);
         SmartDashboard.putData(rotationalPidController);
         SmartDashboard.putNumber("rotation error", rotationalPidController.getPositionError());;
         fiducial = new RawFiducial(tagID, outputY, outputX, outputRotation, MIN_ROTATION_OUTPUT_DEG, MIN_LATERAL_OUTPUT, MIN_DRIVE_X_OUTPUT);
@@ -152,10 +157,23 @@ public class AutoAlignCommand extends Command {
         outputRotation = 0.0;
 
             // rotate stuff
-            if (!donewithRotation) {
-                System.out.println("not done with rotation!");
-                if (rotationalPidController.atGoal()) {donewithRotation = true; System.out.println("set true here");}
-                outputRotation = rotationalPidController.calculate(Units.degreesToRadians(fiducial.txnc), 0);
+            if (!doneWithInitial) {
+                System.out.println("initialR: " + initialR + " tx: " + fiducial.txnc);
+                if (!initialR) {
+                    outputRotation = rotationalPidController.calculate(Units.degreesToRadians(fiducial.txnc));
+                    if (rotationalPidController.atGoal()) {initialR = true; System.out.println("GOAL VALUE: " + Units.degreesToRadians(fiducial.txnc));}
+                }
+
+                if (!initialY && initialR) {
+                    // lateral error
+                    double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
+                    outputY = yPidController.calculate(lateralError);
+                    if (yPidController.atGoal()) {initialY = true;}
+                    
+                } else {
+                    outputRotation = rotationalPidController.calculate(Units.degreesToRadians(fiducial.txnc), 0);
+                    if (rotationalPidController.atGoal() && yPidController.atGoal()) {doneWithInitial = true;}
+                }
             } else {
             double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
             lateralError += yOffset;
@@ -186,7 +204,10 @@ public class AutoAlignCommand extends Command {
     @Override
     public void end(boolean interrupted) {
         tagID = -1;
-        donewithRotation = false;
+        doneWithInitial = false;
+        initialY = false;
+        initialR = false;
+        System.out.println("end command");
         if (!interrupted) {
             if (!xPidController.atGoal()) {
                 m_drivetrain.setControl(
