@@ -35,7 +35,6 @@ public class RobotContainer {
   private final IntakeSubsystem m_intake = new IntakeSubsystem(0);
   private final VisionSubsystem limelight = new VisionSubsystem();
   public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
-  SendableChooser autonomouChooser = new SendableChooser<>(); // you should implement this
 
   private final CommandXboxController m_primaryController =
   new CommandXboxController(OperatorConstants.kDriverControllerPort);

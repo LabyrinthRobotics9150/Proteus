@@ -95,8 +95,8 @@ public class IntakeSubsystem extends SubsystemBase {
                 setHeight(BALL_POSITION);
                 IntakeWheelsMotor.set(.05);
             } else {
-                setHeight(HOME_POSITION);
-                IntakeWheelsMotor.set(.2);
+                //setHeight(HOME_POSITION);
+                IntakeWheelsMotor.set(.4 * 2); // tune
             }
         } else {
             IntakeWheelsMotor.set(-.1);

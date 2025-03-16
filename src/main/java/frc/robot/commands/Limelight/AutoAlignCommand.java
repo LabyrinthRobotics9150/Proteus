@@ -114,7 +114,7 @@ public class AutoAlignCommand extends Command {
         rotationalPidController.setGoal(0);
         xPidController.setGoal(xOffset);
         yPidController.setGoal(0);
-        rotationalPidController.setTolerance(Math.toRadians(2.0));
+        rotationalPidController.setTolerance(Math.toRadians(1.5));
         try {
             // Choose the closest fiducial as the target.
             tagID = m_Limelight.getClosestFiducial().id;
@@ -163,7 +163,6 @@ public class AutoAlignCommand extends Command {
                 }
 
                 if (!initialY && initialR >= 4) {
-                    // lateral error
                     double lateralError = fiducial.distToRobot * Math.sin(Units.degreesToRadians(fiducial.txnc));
                     outputY = yPidController.calculate(lateralError);
                     if (yPidController.atGoal()) {initialY = true;}
@@ -205,7 +204,6 @@ public class AutoAlignCommand extends Command {
         doneWithInitial = false;
         initialY = false;
         initialR = 0;
-        System.out.println("end command");
         if (!interrupted) {
             if (!xPidController.atGoal()) {
                 m_drivetrain.setControl(

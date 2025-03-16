@@ -20,15 +20,19 @@ public class BallScoreCommand extends Command {
 
     @Override
     public void initialize() {
-        if(!processor) {
-            new ElevatorRaise(elevator, 3.9);
-        }
+        counter = 0;
     }
 
     @Override
     public void execute() {
-        if (counter > 60) {
+        if (counter == 0) {
+            elevator.setHeight(3.8);
+        }
+
+        if (counter > 30) {
             intake.intakeScoreBall(true, processor);
+        } else {
+            intake.intakeScoreBall(false, processor);
         }
         counter++;
 
