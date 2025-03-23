@@ -1,14 +1,13 @@
 package frc.robot.commands.autos;
 
 import edu.wpi.first.wpilibj2.command.*;
-import frc.robot.commands.Limelight.AutoAlignCommand;
+import frc.robot.commands.Limelight.AutoAutoAlign;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 import frc.robot.subsystems.ElevatorSubsystem;
 import frc.robot.subsystems.IntakeSubsystem;
 import frc.robot.subsystems.VisionSubsystem;
 import frc.robot.subsystems.LimelightHelpers.RawFiducial;
 import com.ctre.phoenix6.swerve.SwerveRequest;
-import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -31,13 +30,13 @@ public class AutonomousSequence extends SequentialCommandGroup {
             new DriveForwardCommand(drivetrain, 4.0).withTimeout(3),
         
             // (3) Hold alignment using right-alignment.
-            new AutoAlignCommand(drivetrain, limelight, true).withTimeout(4).andThen(new WaitCommand(1)),
+            new AutoAutoAlign(drivetrain, limelight, true).withTimeout(4).andThen(new WaitCommand(1)),
 
             // (4) Raise the elevator to level 4 (approx. 3.9 meters) and hold.
             new ElevatorRaise(elevator, 3.9).withTimeout(1).andThen(new WaitCommand(0.1)),
 
             // (5) Run the shoot command (spin intake wheels at 0.5 speed) for 2 seconds.
-            new ShootCommand(intake, 0.5).withTimeout(1),
+            new ShootCommand(intake, 0.8).withTimeout(2),
 
             // (6) Lower the elevator back to 0.
             new ElevatorRaise(elevator, 0).withTimeout(2).andThen(new WaitCommand(0.25))

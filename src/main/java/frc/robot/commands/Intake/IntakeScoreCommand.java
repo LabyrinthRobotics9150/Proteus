@@ -94,7 +94,6 @@ public class IntakeScoreCommand extends Command {
                     break;
             }
         } else {
-            if (elevatorHeight <= .2 ) {scoringSpeed = .05; intakeSubsystem.setHeight(intakeSubsystem.L1_POSITION);}
             intakeSubsystem.moveWheel(scoringSpeed, false);
         }
     }

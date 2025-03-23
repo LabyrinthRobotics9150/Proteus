@@ -12,7 +12,7 @@ import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.math.util.Units;
 
 
-public class AutoAlignCommand extends Command {
+public class AutoAutoAlign extends Command {
     protected final CommandSwerveDrivetrain m_drivetrain;
     protected final VisionSubsystem m_Limelight;
 
@@ -28,7 +28,7 @@ public class AutoAlignCommand extends Command {
     private ProfiledPIDController rotationalPidController = 
     new ProfiledPIDController(4, 0.0, 0.0, Rotationconstraints);
     private ProfiledPIDController xPidController = 
-    new ProfiledPIDController(1, 0.0, 0.0, xyconstraints);
+    new ProfiledPIDController(.7, 0.0, 0.0, xyconstraints);
     private ProfiledPIDController yPidController = 
     new ProfiledPIDController(2, 0.0, 0.0, xyconstraints);
 
@@ -64,7 +64,7 @@ public class AutoAlignCommand extends Command {
     private static RawFiducial fiducial;
     
     // Constructor for central alignment.
-    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
+    public AutoAutoAlign(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         // set offsets
@@ -83,7 +83,7 @@ public class AutoAlignCommand extends Command {
     
     // Constructor for left/right alignment. For right alignment, use a small positive lateral offset;
     // for left alignment, a small negative offset.
-    public AutoAlignCommand(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, boolean rightAlign) {
+    public AutoAutoAlign(CommandSwerveDrivetrain drivetrain, VisionSubsystem limelight, boolean rightAlign) {
         this.m_drivetrain = drivetrain;
         this.m_Limelight = limelight;
         // set offsets

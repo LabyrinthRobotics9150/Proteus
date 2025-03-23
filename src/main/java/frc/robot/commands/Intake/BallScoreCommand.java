@@ -26,10 +26,10 @@ public class BallScoreCommand extends Command {
     @Override
     public void execute() {
         if (counter == 0) {
-            elevator.setHeight(3.8);
+            elevator.setHeight(3.9);
         }
 
-        if (counter > 30) {
+        if (counter > 27) {
             intake.intakeScoreBall(true, processor);
         } else {
             intake.intakeScoreBall(false, processor);
@@ -43,6 +43,7 @@ public class BallScoreCommand extends Command {
     public void end(boolean interrupted) {
         intake.stopWheel();
         elevator.setHeight(0);
+        intake.setHeight(intake.HOME_POSITION);
     }
 
 }

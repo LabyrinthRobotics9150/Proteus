@@ -21,9 +21,9 @@ public class IntakeSubsystem extends SubsystemBase {
     private static boolean scoring = false;
 
     AbsoluteEncoder intakePivotEncoder = IntakePivotMotor.getAbsoluteEncoder();
-    public final double HOME_POSITION = 0.851;
+    public final double HOME_POSITION = 0.795;
     public final double BALL_POSITION = 0.469;
-    public final double GROUND_POSITION = .38;
+    public final double GROUND_POSITION = .295;
     public final double L1_POSITION = .5; 
 
     // (max velocity and acceleration)
@@ -92,11 +92,10 @@ public class IntakeSubsystem extends SubsystemBase {
         this.scoring = scoring;
         if (scoring) {
             if (processor) {
-                setHeight(BALL_POSITION);
                 IntakeWheelsMotor.set(.05);
             } else {
-                //setHeight(HOME_POSITION);
-                IntakeWheelsMotor.set(.4 * 2); // tune
+                setHeight(HOME_POSITION);
+                IntakeWheelsMotor.set(.95); // tune
             }
         } else {
             IntakeWheelsMotor.set(-.1);

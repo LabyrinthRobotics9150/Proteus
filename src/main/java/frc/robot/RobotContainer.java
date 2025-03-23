@@ -279,7 +279,16 @@ new CommandXboxController(OperatorConstants.kSecondaryControllerPort);
     .and(m_secondaryController.leftTrigger())
     .whileTrue(ballLevel1);
     }
-}
+
+    // same for the barge score
+    m_secondaryController.x() 
+    .and(m_secondaryController.leftBumper())
+    .whileTrue(ballLevel2);
+
+    m_secondaryController.b()
+    .and(m_secondaryController.leftBumper())
+    .whileTrue(ballLevel1);
+  }
 
     public Command getAutonomousCommand() {
       // incorporate the current autonomous command
